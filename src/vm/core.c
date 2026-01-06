@@ -97,7 +97,7 @@ void vm_run(vm_state_t *vm) {
 }
 
 static int check_header(const char *data) {
-  return data[0] == 'A' && data[1] == 'R' && data[2] == 'M' && data[3] == 'V';
+  return data[0] == 'V' && data[1] == 'A' && data[2] == 'R' && data[3] == 'M';
 }
 
 int vm_load(vm_state_t *vm, const char *filename) {

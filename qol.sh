@@ -86,10 +86,10 @@ test() {
     FAILED=0
     PASSED=0
 
-    for asm_file in examples/*.asm; do
+    for asm_file in examples/*.vasm; do
         if [ -f "$asm_file" ]; then
-            basename=$(basename "$asm_file" .asm)
-            vm_file="/tmp/test_${basename}.vm"
+            basename=$(basename "$asm_file" .vasm)
+            vm_file="/tmp/test_${basename}.varm"
 
             if "$VASM" "$asm_file" -o "$vm_file" > /dev/null 2>&1; then
                 if "$VARM" "$vm_file" > /dev/null 2>&1; then

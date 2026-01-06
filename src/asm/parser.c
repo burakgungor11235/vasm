@@ -462,7 +462,7 @@ int write_vm_file(program_state_t *prog, const char *filename) {
     return -1;
   }
 
-  char header[32] = {'A', 'R', 'M', 'V'};
+  char header[32] = {'V', 'A', 'R', 'M'};
   u32 text_offset = 32;
   u32 data_offset = text_offset + prog->text_size * 4;
   u32 entry = 0;
