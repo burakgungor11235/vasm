@@ -162,19 +162,19 @@ void exec_teq(vm_state_t *vm, u32 instr) {
 }
 
 void exec_mul(vm_state_t *vm, u32 instr) {
-  u8 rd = (instr >> 16) & 0xF;
-  u8 rm = (instr >> 0) & 0xF;
-  u8 rs = (instr >> 8) & 0xF;
+  u8 rd = (instr >> 12) & 0xF;
+  u8 rm = (instr >> 8) & 0xF;
+  u8 rs = (instr >> 4) & 0xF;
   u32 result = vm_get_reg(vm, rm) * vm_get_reg(vm, rs);
   vm_set_reg(vm, rd, result);
   set_nzcv(vm, result);
 }
 
 void exec_mla(vm_state_t *vm, u32 instr) {
-  u8 rd = (instr >> 16) & 0xF;
-  u8 rm = (instr >> 0) & 0xF;
-  u8 rs = (instr >> 8) & 0xF;
-  u8 rn = (instr >> 12) & 0xF;
+  u8 rd = (instr >> 12) & 0xF;
+  u8 rm = (instr >> 8) & 0xF;
+  u8 rs = (instr >> 4) & 0xF;
+  u8 rn = (instr >> 16) & 0xF;
   u32 result = vm_get_reg(vm, rm) * vm_get_reg(vm, rs) + vm_get_reg(vm, rn);
   vm_set_reg(vm, rd, result);
   set_nzcv(vm, result);

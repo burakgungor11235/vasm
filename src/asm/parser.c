@@ -369,14 +369,18 @@ int parse(token_t *tokens, int token_count, program_state_t *prog) {
         continue;
       }
 
-      if (opcode == OP_MUL) {
-        u8 rm = 0;
+      if (opcode == OP_MUL || opcode == OP_MLA) {
+        u8 rd = 0, rm = 0, rs = 0, rn = 0;
         if (i < token_count) { rd = get_register(tokens[i].value); i++; }
         if (i < token_count && tokens[i].type == TOKEN_COMMA) { i++; }
-        if (i < token_count) { rn = get_register(tokens[i].value); i++; }
-        if (i < token_count && tokens[i].type == TOKEN_COMMA) { i++; }
         if (i < token_count) { rm = get_register(tokens[i].value); i++; }
-        instr = (opcode << 24) | (parse_condition(condition) << 20) | (rd << 16) | (rn << 8) | rm;
+        if (i < token_count && tokens[i].type == TOKEN_COMMA) { i++; }
+        if (i < token_count) { rs = get_register(tokens[i].value); i++; }
+        if (opcode == OP_MLA) {
+          if (i < token_count && tokens[i].type == TOKEN_COMMA) { i++; }
+          if (i < token_count) { rn = get_register(tokens[i].value); i++; }
+        }
+        instr = (opcode << 24) | (parse_condition(condition) << 20) | (rn << 16) | (rd << 12) | (rm << 8) | (rs << 4);
         emit_instr(prog, instr);
         continue;
       }
