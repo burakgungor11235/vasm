@@ -233,7 +233,7 @@ void exec_b(vm_state_t *vm, u32 instr) {
   if (offset & 0x800000) {
     offset |= 0xFF000000;
   }
-  vm->regs.pc += offset << 2;
+  vm->regs.pc = (vm->regs.pc - 4) + 8 + (offset << 2);
 }
 
 void exec_bl(vm_state_t *vm, u32 instr) {
@@ -242,7 +242,7 @@ void exec_bl(vm_state_t *vm, u32 instr) {
   if (offset & 0x800000) {
     offset |= 0xFF000000;
   }
-  vm->regs.pc += offset << 2;
+  vm->regs.pc = (vm->regs.pc - 4) + 8 + (offset << 2);
 }
 
 void exec_bx(vm_state_t *vm, u32 instr) {

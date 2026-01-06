@@ -78,6 +78,8 @@ void vm_step(vm_state_t *vm) {
   u8 opcode = (instr >> 24) & 0xFF;
   u8 cond = (instr >> 20) & 0xF;
 
+  vm->regs.pc += 4;
+
   if (check_condition(vm, cond)) {
     if (exec_table[opcode] != NULL) {
       exec_table[opcode](vm, instr);
