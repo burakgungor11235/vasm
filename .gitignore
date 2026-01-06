@@ -1,0 +1,36 @@
+# Build directories
+build/
+*.build/
+
+# Object files
+*.o
+*.obj
+
+# Executables
+*.exe
+*.dll
+*.so
+*.a
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Cache directories
+.cache/
+*.cache/
+
+# Temporary files
+*.tmp
+*.log
+*.out
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Meson
+meson-private/
