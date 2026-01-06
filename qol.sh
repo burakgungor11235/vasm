@@ -4,7 +4,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/build"
-ASM_VM="$BUILD_DIR/src/asm-vm"
+VARM="$BUILD_DIR/src/varm"
 VASM="$BUILD_DIR/src/vasm"
 
 usage() {
@@ -41,7 +41,7 @@ run() {
         exit 1
     fi
 
-    if [ ! -f "$ASM_VM" ]; then
+    if [ ! -f "$VARM" ]; then
         echo "VM not built. Run '$0 build' first."
         exit 1
     fi
@@ -53,7 +53,7 @@ run() {
         exit 1
     fi
 
-    "$ASM_VM" "$@"
+    "$VARM" "$@"
 }
 
 asm() {
@@ -74,7 +74,7 @@ asm() {
 }
 
 test() {
-    if [ ! -f "$ASM_VM" ]; then
+    if [ ! -f "$VARM" ]; then
         echo "VM not built. Run '$0 build' first."
         exit 1
     fi
@@ -92,7 +92,7 @@ test() {
             vm_file="/tmp/test_${basename}.vm"
 
             if "$VASM" "$asm_file" -o "$vm_file" > /dev/null 2>&1; then
-                if "$ASM_VM" "$vm_file" > /dev/null 2>&1; then
+                if "$VARM" "$vm_file" > /dev/null 2>&1; then
                     echo "  PASS: $basename"
                     PASSED=$((PASSED + 1))
                 else

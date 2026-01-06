@@ -1,4 +1,4 @@
-project('asm-vm', 'c',
+project('varm', 'c',
   version: '0.1.0',
   default_options: [
     'c_std=c99',

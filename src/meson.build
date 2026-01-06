@@ -28,7 +28,7 @@ test_sources = [
   'test/framework.c',
 ]
 
-executable('asm-vm',
+executable('varm',
   'main.c',
   vm_sources,
   asm_sources,
