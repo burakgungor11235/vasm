@@ -4,6 +4,7 @@ vm_sources = [
   'vm/memory.c',
   'vm/condition.c',
   'vm/instruction.c',
+  'vm/debug.c',
 ]
 
 vm_headers = [

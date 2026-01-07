@@ -146,6 +146,20 @@ tokenize(const char* input, token_t* tokens, int max_tokens)
 	    continue;
 	}
 
+	if (*p == '\'') {
+	    char ch = *(p + 1);
+	    if (ch && *(p + 2) == '\'') {
+		char value[8];
+		snprintf(value, sizeof(value), "%d", (int)(unsigned char)ch);
+		tokens[token_count].type = TOKEN_IMMEDIATE;
+		tokens[token_count].value = strdup_len(value, strlen(value));
+		tokens[token_count].line = line;
+		token_count++;
+		p += 3;
+		continue;
+	    }
+	}
+
 	if (*p == '-' && is_number_start(*(p + 1))) {
 	    const char* start = p;
 	    p++;

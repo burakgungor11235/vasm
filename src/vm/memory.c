@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../include/vm.h"
+#include "../include/debug.h"
 
 vm_state_t*
 vm_create(void)
@@ -52,8 +53,10 @@ vm_mem_read32(vm_state_t* vm, u32 addr)
     if (addr >= MEMORY_SIZE - 3) {
 	return 0;
     }
-    return (u32)vm->mem.memory[addr] | ((u32)vm->mem.memory[addr + 1] << 8) |
-           ((u32)vm->mem.memory[addr + 2] << 16) | ((u32)vm->mem.memory[addr + 3] << 24);
+    u32 value = (u32)vm->mem.memory[addr] | ((u32)vm->mem.memory[addr + 1] << 8) |
+                ((u32)vm->mem.memory[addr + 2] << 16) | ((u32)vm->mem.memory[addr + 3] << 24);
+    debug_mem(vm->debug_config, addr, value, 1);
+    return value;
 }
 
 uint16_t
@@ -62,7 +65,9 @@ vm_mem_read16(vm_state_t* vm, u32 addr)
     if (addr >= MEMORY_SIZE - 1) {
 	return 0;
     }
-    return (uint16_t)vm->mem.memory[addr] | ((uint16_t)vm->mem.memory[addr + 1] << 8);
+    uint16_t value = (uint16_t)vm->mem.memory[addr] | ((uint16_t)vm->mem.memory[addr + 1] << 8);
+    debug_mem(vm->debug_config, addr, value, 1);
+    return value;
 }
 
 uint8_t
@@ -71,7 +76,9 @@ vm_mem_read8(vm_state_t* vm, u32 addr)
     if (addr >= MEMORY_SIZE) {
 	return 0;
     }
-    return vm->mem.memory[addr];
+    uint8_t value = vm->mem.memory[addr];
+    debug_mem(vm->debug_config, addr, value, 1);
+    return value;
 }
 
 void
@@ -84,6 +91,7 @@ vm_mem_write32(vm_state_t* vm, u32 addr, u32 value)
     vm->mem.memory[addr + 1] = (value >> 8) & 0xFF;
     vm->mem.memory[addr + 2] = (value >> 16) & 0xFF;
     vm->mem.memory[addr + 3] = (value >> 24) & 0xFF;
+    debug_mem(vm->debug_config, addr, value, 0);
 }
 
 void
@@ -94,6 +102,7 @@ vm_mem_write16(vm_state_t* vm, u32 addr, uint16_t value)
     }
     vm->mem.memory[addr] = value & 0xFF;
     vm->mem.memory[addr + 1] = (value >> 8) & 0xFF;
+    debug_mem(vm->debug_config, addr, value, 0);
 }
 
 void
@@ -103,4 +112,5 @@ vm_mem_write8(vm_state_t* vm, u32 addr, uint8_t value)
 	return;
     }
     vm->mem.memory[addr] = value;
+    debug_mem(vm->debug_config, addr, value, 0);
 }

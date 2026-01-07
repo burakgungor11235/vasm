@@ -400,6 +400,106 @@ factorial:
 ./qol.sh test
 ```
 
+## Debug Mode
+
+The VM includes a tag-based debug system for tracing execution.
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-v, --verbose <level>` | Set verbosity level (0-5) |
+| `-d, --debug <tag>` | Enable a debug tag |
+| `--no-<tag>` | Disable a debug tag |
+| `--tags` | List all available debug tags |
+
+### Verbosity Levels
+
+| Level | Name | Description |
+|-------|------|-------------|
+| 0 | ERROR | Show only errors |
+| 1 | WARN | Show warnings and errors |
+| 2 | INFO | Show informational messages |
+| 3 | DEBUG | Show debug messages |
+| 4 | TRACE | Show detailed traces |
+
+### Debug Tags
+
+| Tag | Description |
+|-----|-------------|
+| `instr` | Trace every instruction execution |
+| `regs` | Dump registers after each instruction |
+| `mem` | Log all memory accesses |
+| `syscall` | Trace system calls |
+| `stats` | Show execution statistics at end |
+
+### Examples
+
+```bash
+# List available tags
+./varm --tags
+
+# Trace instructions
+./varm -d INSTR program.varm
+
+# Show registers
+./varm -d REGS program.varm
+
+# Trace syscalls
+./varm -d SYSCALL program.varm
+
+# Show memory accesses
+./varm -d MEM program.varm
+
+# Show execution statistics
+./varm -d STATS program.varm
+
+# Multiple tags
+./varm -d INSTR -d REGS program.varm
+
+# Verbosity level
+./varm -v 3 program.varm
+
+# Disable a tag enabled by verbosity
+./varm -v 4 --no-SYSCALL program.varm
+```
+
+### Output Format
+
+Instruction trace format:
+```
+[INSTR] pc=0x00000020 00e0 AL MOV  r0, #0x02a
+```
+
+Register dump format:
+```
+[REGS]
+  r0 : 0x00000000  r1 : 0x00000000  r2 : 0x00000000  r3 : 0x00000000
+  sp: 0x00000000  lr: 0x00000000  pc: 0x00000024
+  cpsr: 0x40000000  N=0 Z=1 C=0 V=0
+```
+
+Memory access format:
+```
+[MEM] read [0x00000020] = 0x00e0002a
+[MEM] write [0x00010000] = 0x00000048
+```
+
+Syscall format:
+```
+[SYSCALL] WRITE fd=1 addr=0x10000 count=7
+[SYSCALL] EXIT code=0
+```
+
+Statistics format:
+```
+[STATS]
+  instructions: 9
+  memory reads: 15
+  memory writes: 3
+  syscalls: 2
+```
+
 ## Assembly/Run Cycle
 
 ```

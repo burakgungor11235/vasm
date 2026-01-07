@@ -35,4 +35,6 @@ free_tokens(token_t* tokens, int count);
 int
 assemble(const char* input_file, const char* output_file);
 
+extern int asm_debug;
+
 #endif

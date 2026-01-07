@@ -1,11 +1,34 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
+/*
+ * varm - Virtual Abstract Runtime Machine
+ * 
+ * All values are stored in little-endian format, both in memory and in .varm files.
+ * 32-bit words are stored with least-significant byte first.
+ *
+ * Instruction format (32-bit):
+ *   31:24 opcode  |  23:20 cond  |  19:16 rn  |  15:12 rd  |  11:0 operand
+ *
+ * Operand2 field (12 bits):
+ *   - Immediate form (bit 25 = 1):  11:8 rotate  |  7:0 imm8
+ *   - Register form (bit 25 = 0):   11:10 shift_type  |  9:5 shift_imm  |  4:0 rm
+ */
+
 #include <stdint.h>
 
 #define MEMORY_SIZE (1024 * 1024)
 #define TEXT_OFFSET 0x00000000
 #define DATA_OFFSET 0x00010000
+
+#define OPCODE_SHIFT 24
+#define COND_SHIFT 20
+#define RD_SHIFT 12
+#define RN_SHIFT 16
+#define ROTATE_SHIFT 8
+#define OFFSET_MASK 0xFFF
+#define OFFSET_SIGN_BIT 0x800
+#define OPERAND_IMM_FLAG (1 << 19)
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -69,6 +92,12 @@ typedef enum {
     SHIFT_ROR = 3,
 } shift_type_t;
 
+typedef enum {
+    SYSCALL_EXIT = 1,
+    SYSCALL_READ = 2,
+    SYSCALL_WRITE = 3,
+} syscall_num_t;
+
 typedef struct {
     u8 opcode;
     u8 cond;
@@ -108,13 +137,8 @@ typedef struct {
     int running;
     int debug;
     int exit_code;
+    void* debug_config;
 } vm_state_t;
-
-typedef enum {
-    SYSCALL_EXIT = 1,
-    SYSCALL_READ = 2,
-    SYSCALL_WRITE = 3,
-} syscall_num_t;
 
 u32
 check_condition(vm_state_t* vm, u8 cond);

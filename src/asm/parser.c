@@ -49,6 +49,29 @@
 #define MAX_LABELS 256
 #define MAX_INSTRUCTIONS 4096
 
+int asm_debug = 0;
+
+#define ASM_DEBUG(fmt, ...)                                                                        \
+    do {                                                                                           \
+	if (asm_debug) {                                                                           \
+	    fprintf(stderr, "[ASM] " fmt, ##__VA_ARGS__);                                          \
+	}                                                                                          \
+    } while (0)
+
+#define ASM_DEBUG_LABEL(fmt, ...)                                                                  \
+    do {                                                                                           \
+	if (asm_debug) {                                                                           \
+	    fprintf(stderr, "[LABEL] " fmt, ##__VA_ARGS__);                                        \
+	}                                                                                          \
+    } while (0)
+
+#define ASM_DEBUG_POOL(fmt, ...)                                                                   \
+    do {                                                                                           \
+	if (asm_debug) {                                                                           \
+	    fprintf(stderr, "[POOL] " fmt, ##__VA_ARGS__);                                         \
+	}                                                                                          \
+    } while (0)
+
 /*
  * Forward declarations for program state struct members.
  * These must be defined before program_state_t.
@@ -162,20 +185,20 @@ static void
 emit_literal_pool(program_state_t* prog)
 {
     /* Calculate the offset where the literal pool starts.
-   * The literal pool is placed after all text instructions.
-   */
+    * The literal pool is placed after all text instructions.
+    */
     u32 pool_start = prog->text_size * 4;
 
-    fprintf(stderr, "DEBUG: emit_literal_pool: text_size=%u, pool_start=%u, count=%d\n",
-            prog->text_size, pool_start, prog->literal_pool_count);
+    ASM_DEBUG_POOL("emit_literal_pool: text_size=%u, pool_start=%u, count=%d\n", prog->text_size,
+                   pool_start, prog->literal_pool_count);
 
     /* Calculate offsets for each literal pool entry and emit them */
     for (int i = 0; i < prog->literal_pool_count; i++) {
 	prog->literal_pool[i].offset = pool_start + i * 4;
 	prog->text[prog->text_size++] = prog->literal_pool[i].value;
 
-	fprintf(stderr, "DEBUG:   pool[%d]: value=0x%08X, offset=%u\n", i,
-	        prog->literal_pool[i].value, prog->literal_pool[i].offset);
+	ASM_DEBUG_POOL("  pool[%d]: value=0x%08X, offset=%u\n", i, prog->literal_pool[i].value,
+	               prog->literal_pool[i].offset);
     }
 
     /* Fix up LDR instructions that reference the literal pool */
@@ -187,16 +210,16 @@ emit_literal_pool(program_state_t* prog)
 	    u32 pool_offset = prog->literal_pool[pool_idx].offset;
 
 	    /* Recalculate PC-relative offset
-        * The offset field in the instruction is a BYTE offset.
-        * VM calculates: addr = PC + offset (where offset is in bytes).
-        *
-        * At exec time: PC = entry + instr_byte_offset + 4 (VM increments after fetch)
-        * We want: addr = entry + pool_byte_offset
-        * So: offset = (entry + pool_byte_offset) - (entry + instr_byte_offset + 4)
-        *    offset = pool_byte_offset - instr_byte_offset - 4
-        *
-        * instr_addr is word index (bytes / 4), so instr_byte_offset = instr_addr * 4
-        */
+         * The offset field in the instruction is a BYTE offset.
+         * VM calculates: addr = PC + offset (where offset is in bytes).
+         *
+         * At exec time: PC = entry + instr_byte_offset + 4 (VM increments after fetch)
+         * We want: addr = entry + pool_byte_offset
+         * So: offset = (entry + pool_byte_offset) - (entry + instr_byte_offset + 4)
+         *    offset = pool_byte_offset - instr_byte_offset - 4
+         *
+         * instr_addr is word index (bytes / 4), so instr_byte_offset = instr_addr * 4
+         */
 	    int byte_offset = (int)pool_offset - (int)(instr_addr * 4 + 4);
 	    u32 offset_val = byte_offset;
 
@@ -204,18 +227,16 @@ emit_literal_pool(program_state_t* prog)
 	    u32 new_instr = (prog->text[instr_addr] & 0xFFFFF000) | (offset_val & 0xFFF);
 	    prog->text[instr_addr] = new_instr;
 
-	    fprintf(stderr, "DEBUG:   fixup LDR at %u: pool_offset=%u, byte_offset=%d, offset=%u\n",
-	            instr_addr * 4, pool_offset, byte_offset, offset_val);
-	    fprintf(stderr,
-	            "DEBUG:   old_instr=0x%08X (opcode=0x%02X, cond=0x%X, rn=0x%X, rd=0x%X, "
-	            "off=0x%03X)\n",
-	            old_instr, (old_instr >> 24) & 0xFF, (old_instr >> 20) & 0xF,
-	            (old_instr >> 16) & 0xF, (old_instr >> 12) & 0xF, old_instr & 0xFFF);
-	    fprintf(stderr,
-	            "DEBUG:   new_instr=0x%08X (opcode=0x%02X, cond=0x%X, rn=0x%X, rd=0x%X, "
-	            "off=0x%03X)\n",
-	            new_instr, (new_instr >> 24) & 0xFF, (new_instr >> 20) & 0xF,
-	            (new_instr >> 16) & 0xF, (new_instr >> 12) & 0xF, new_instr & 0xFFF);
+	    ASM_DEBUG_POOL("  fixup LDR at %u: pool_offset=%u, byte_offset=%d, offset=%u\n",
+	                   instr_addr * 4, pool_offset, byte_offset, offset_val);
+	    ASM_DEBUG_POOL("    old_instr=0x%08X (opcode=0x%02X, cond=0x%X, rn=0x%X, rd=0x%X, "
+	                   "off=0x%03X)\n",
+	                   old_instr, (old_instr >> 24) & 0xFF, (old_instr >> 20) & 0xF,
+	                   (old_instr >> 16) & 0xF, (old_instr >> 12) & 0xF, old_instr & 0xFFF);
+	    ASM_DEBUG_POOL("    new_instr=0x%08X (opcode=0x%02X, cond=0x%X, rn=0x%X, rd=0x%X, "
+	                   "off=0x%03X)\n",
+	                   new_instr, (new_instr >> 24) & 0xFF, (new_instr >> 20) & 0xF,
+	                   (new_instr >> 16) & 0xF, (new_instr >> 12) & 0xF, new_instr & 0xFFF);
 	}
     }
 }
@@ -609,7 +630,8 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
          * Branch format per REFERENCE.md:
          *   31:24 opcode | 23:20 cond | 19:0 offset (signed, << 2)
          */
-		instr = (opcode << 24) | (parse_condition(condition) << 20) | (offset & 0xFFFFF);
+		instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		        (offset & 0xFFFFF);
 		emit_instr(prog, instr);
 		continue;
 	    }
@@ -622,7 +644,7 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
        * =====================================================
        */
 	    if (opcode == OP_HALT || opcode == OP_NOP) {
-		instr = (opcode << 24) | (parse_condition(condition) << 20);
+		instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT);
 		emit_instr(prog, instr);
 		continue;
 	    }
@@ -648,7 +670,8 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		    }
 		}
 		/* SWI syscall number goes in operand field (bits 0-11) */
-		instr = (opcode << 24) | (parse_condition(condition) << 20) | (offset & 0xFFF);
+		instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		        (offset & OFFSET_MASK);
 		emit_instr(prog, instr);
 		continue;
 	    }
@@ -670,15 +693,18 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		}
 		u32 operand_immed = 0;
 		u32 operand_reg = 0;
+		int is_immediate = 0;
 		if (i < token_count) {
 		    if (tokens[i].type == TOKEN_HASH) {
 			i++;
 			if (i < token_count && tokens[i].type == TOKEN_IMMEDIATE) {
 			    operand_immed = parse_immediate(tokens[i].value);
+			    is_immediate = 1;
 			    i++;
 			}
 		    } else if (tokens[i].type == TOKEN_IMMEDIATE) {
 			operand_immed = parse_immediate(tokens[i].value);
+			is_immediate = 1;
 			i++;
 		    } else if (tokens[i].type == TOKEN_IDENTIFIER) {
 			int rm = get_register(tokens[i].value);
@@ -686,17 +712,24 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 			    operand_reg = rm;
 			} else {
 			    operand_immed = parse_immediate(tokens[i].value);
+			    is_immediate = 1;
 			}
 			i++;
 		    }
 		}
 		/*
-         * Encode: opcode<<24 | cond<<20 | rn(=0)<<16 | rd<<12 | operand
-         * Operand is 12 bits: combine immediate (with rotate encoding) and register
-         */
-		operand = (operand_immed | operand_reg) & 0xFFF;
-		instr = (opcode << 24) | (parse_condition(condition) << 20) | (rn << 16) |
-		        (rd << 12) | operand;
+		 * Encode: opcode<<OPCODE_SHIFT | cond<<COND_SHIFT | rd<<RD_SHIFT | operand
+		 * MOV/MVN have no rn field - operand is the source
+		 */
+		if (is_immediate) {
+		    operand = operand_immed & OFFSET_MASK;
+		    instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		            (rd << RD_SHIFT) | OPERAND_IMM_FLAG | operand;
+		} else {
+		    operand = operand_reg & OFFSET_MASK;
+		    instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		            (rd << RD_SHIFT) | operand;
+		}
 		emit_instr(prog, instr);
 		continue;
 	    }
@@ -716,24 +749,43 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		if (i < token_count && (tokens[i].type == TOKEN_COMMA)) {
 		    i++;
 		    if (i < token_count) {
+			u32 operand_immed = 0;
+			u32 operand_reg = 0;
+			int is_immediate = 0;
 			if (tokens[i].type == TOKEN_HASH) {
 			    i++;
 			    if (i < token_count && tokens[i].type == TOKEN_IMMEDIATE) {
-				operand = parse_immediate(tokens[i].value);
+				operand_immed = parse_immediate(tokens[i].value);
+				is_immediate = 1;
 				i++;
 			    }
 			} else if (tokens[i].type == TOKEN_IMMEDIATE) {
-			    operand = parse_immediate(tokens[i].value);
+			    operand_immed = parse_immediate(tokens[i].value);
+			    is_immediate = 1;
 			    i++;
 			} else if (tokens[i].type == TOKEN_IDENTIFIER) {
-			    operand = parse_immediate(tokens[i].value);
+			    int rm = get_register(tokens[i].value);
+			    if (rm >= 0) {
+				operand_reg = rm;
+			    } else {
+				operand_immed = parse_immediate(tokens[i].value);
+				is_immediate = 1;
+			    }
 			    i++;
+			}
+			if (is_immediate) {
+			    operand = operand_immed & OFFSET_MASK;
+			    instr = (opcode << OPCODE_SHIFT) | OPERAND_IMM_FLAG |
+			            (parse_condition(condition) << COND_SHIFT) | (rn << RN_SHIFT) |
+			            (rd << RD_SHIFT) | operand;
+			} else {
+			    operand = operand_reg & OFFSET_MASK;
+			    instr = (opcode << OPCODE_SHIFT) |
+			            (parse_condition(condition) << COND_SHIFT) | (rn << RN_SHIFT) |
+			            (rd << RD_SHIFT) | operand;
 			}
 		    }
 		}
-		operand = operand & 0xFFF;
-		instr = (opcode << 24) | (parse_condition(condition) << 20) | (rn << 16) |
-		        (rd << 12) | operand;
 		emit_instr(prog, instr);
 		continue;
 	    }
@@ -779,8 +831,8 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
          * Multiply format per REFERENCE.md:
          *   31:24 opcode | 23:20 cond | 19:16 rn | 15:12 rd | 11:8 rm | 7:4 rs | 3:0 -
          */
-		instr = (opcode << 24) | (parse_condition(condition) << 20) | (rn_mul << 16) |
-		        (rd_mul << 12) | (rm << 8) | (rs << 4);
+		instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		        (rn_mul << RN_SHIFT) | (rd_mul << RD_SHIFT) | (rm << 8) | (rs << 4);
 		emit_instr(prog, instr);
 		continue;
 	    }
@@ -812,8 +864,8 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		const char* label_name = tokens[i + 3].value;
 		int label_addr = lookup_label(prog, label_name);
 
-		fprintf(stderr, "DEBUG: =label pseudo-instr: label='%s' addr=0x%X rd=%d\n",
-		        label_name, label_addr, rd);
+		ASM_DEBUG_LABEL("=label pseudo-instr: label='%s' addr=0x%X rd=%d\n", label_name,
+		                label_addr, rd);
 
 		if (label_addr >= 0) {
 		    /* Add value to literal pool */
@@ -830,21 +882,16 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 
 		    /* Emit placeholder LDR instruction - will be fixed up after literal pool is placed */
 		    /* LDR rd, [pc, #0] - placeholder offset of 0 */
-		    instr = (OP_LDR << 24) | (parse_condition(condition) << 20) | (15 << 16) |
-		            (rd << 12);
-		    fprintf(stderr,
-		            "DEBUG: =label emit: instr=0x%08X (opcode=0x%02X, cond=0x%X, rn=0x%X, "
-		            "rd=0x%X)\n",
-		            instr, (instr >> 24) & 0xFF, (instr >> 20) & 0xF, (instr >> 16) & 0xF,
-		            (instr >> 12) & 0xF);
+		    instr = (OP_LDR << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		            (15 << RN_SHIFT) | (rd << RD_SHIFT);
 		    emit_instr(prog, instr);
 
-		    fprintf(stderr, "DEBUG: =label: pool_index=%u, instr_addr=%u\n", pool_index,
-		            prog->text_size * 4 - 4);
+		    ASM_DEBUG_LABEL("=label: pool_index=%u, instr_addr=%u\n", pool_index,
+		                    prog->text_size * 4 - 4);
 		} else {
 		    /* Label not found - emit NOP */
 		    fprintf(stderr, "Warning: label '%s' not found\n", label_name);
-		    instr = (OP_NOP << 24) | (parse_condition(condition) << 20);
+		    instr = (OP_NOP << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT);
 		    emit_instr(prog, instr);
 		}
 
@@ -891,8 +938,8 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		    }
 		}
 		offset_ldr = offset_ldr & 0xFFF;
-		instr = (opcode << 24) | (parse_condition(condition) << 20) | (rn_ldr << 16) |
-		        (rt << 12) | offset_ldr;
+		instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		        (rn_ldr << RN_SHIFT) | (rt << RD_SHIFT) | offset_ldr;
 		emit_instr(prog, instr);
 		continue;
 	    }
@@ -923,17 +970,28 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 	    }
 
 	    if (i < token_count) {
+		u32 operand_immed = 0;
+		u32 operand_reg = 0;
+		int is_immediate = 0;
 		if (tokens[i].type == TOKEN_HASH) {
 		    i++;
 		    if (i < token_count && tokens[i].type == TOKEN_IMMEDIATE) {
-			operand = parse_immediate(tokens[i].value);
+			operand_immed = parse_immediate(tokens[i].value);
+			is_immediate = 1;
 			i++;
 		    }
 		} else if (tokens[i].type == TOKEN_IMMEDIATE) {
-		    operand = parse_immediate(tokens[i].value);
+		    operand_immed = parse_immediate(tokens[i].value);
+		    is_immediate = 1;
 		    i++;
 		} else if (tokens[i].type == TOKEN_IDENTIFIER) {
-		    operand = parse_immediate(tokens[i].value);
+		    int rm = get_register(tokens[i].value);
+		    if (rm >= 0) {
+			operand_reg = rm;
+		    } else {
+			operand_immed = parse_immediate(tokens[i].value);
+			is_immediate = 1;
+		    }
 		    i++;
 		} else if (tokens[i].type == TOKEN_LBRACKET) {
 		    u32 base = rn;
@@ -957,11 +1015,21 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		    emit_instr(prog, instr);
 		    continue;
 		}
+		/*
+		 * Encode: set OPERAND_IMM_FLAG for immediate values
+		 */
+		if (is_immediate) {
+		    operand = operand_immed & OFFSET_MASK;
+		    instr = (opcode << OPCODE_SHIFT) | OPERAND_IMM_FLAG |
+		            (parse_condition(condition) << COND_SHIFT) | (rn << RN_SHIFT) |
+		            (rd << RD_SHIFT) | operand;
+		} else {
+		    operand = operand_reg & OFFSET_MASK;
+		    instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		            (rn << RN_SHIFT) | (rd << RD_SHIFT) | operand;
+		}
 	    }
 
-	    operand = operand & 0xFFF;
-	    instr = (opcode << 24) | (parse_condition(condition) << 20) | (rn << 16) | (rd << 12) |
-	            operand;
 	    emit_instr(prog, instr);
 	}
     }

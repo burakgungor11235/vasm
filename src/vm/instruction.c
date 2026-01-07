@@ -2,13 +2,15 @@
 #include <string.h>
 #include <unistd.h>
 #include "../include/vm.h"
+#include "../include/debug.h"
 
 static u32
 decode_operand2(vm_state_t* vm, u32 instr)
 {
-    u8 is_immediate = (instr >> 25) & 1;
-    u8 rotate = (instr >> 8) & 0xF;
-    u8 imm8 = instr & 0xFF;
+    u8 is_immediate = (instr >> 19) & 1;
+    u32 operand = instr & 0xFFF;
+    u8 rotate = (operand >> 8) & 0xF;
+    u8 imm8 = operand & 0xFF;
     u32 value = imm8;
     if (rotate > 0) {
 	value = (imm8 >> (rotate * 2)) | (imm8 << (32 - rotate * 2));
@@ -228,10 +230,10 @@ exec_mla(vm_state_t* vm, u32 instr)
 void
 exec_ldr(vm_state_t* vm, u32 instr)
 {
-    u8 rt = (instr >> 12) & 0xF;
-    u8 rn = (instr >> 16) & 0xF;
-    u32 offset = instr & 0xFFF;
-    if (offset & 0x800) {
+    u8 rt = (instr >> RD_SHIFT) & 0xF;
+    u8 rn = (instr >> RN_SHIFT) & 0xF;
+    u32 offset = instr & OFFSET_MASK;
+    if (offset & OFFSET_SIGN_BIT) {
 	offset |= 0xFFFFF000;
     }
     u32 addr = vm_get_reg(vm, rn) + offset;
@@ -242,10 +244,10 @@ exec_ldr(vm_state_t* vm, u32 instr)
 void
 exec_ldrb(vm_state_t* vm, u32 instr)
 {
-    u8 rt = (instr >> 12) & 0xF;
-    u8 rn = (instr >> 16) & 0xF;
-    u32 offset = instr & 0xFFF;
-    if (offset & 0x800) {
+    u8 rt = (instr >> RD_SHIFT) & 0xF;
+    u8 rn = (instr >> RN_SHIFT) & 0xF;
+    u32 offset = instr & OFFSET_MASK;
+    if (offset & OFFSET_SIGN_BIT) {
 	offset |= 0xFFFFF000;
     }
     u32 addr = vm_get_reg(vm, rn) + offset;
@@ -256,10 +258,10 @@ exec_ldrb(vm_state_t* vm, u32 instr)
 void
 exec_str(vm_state_t* vm, u32 instr)
 {
-    u8 rt = (instr >> 12) & 0xF;
-    u8 rn = (instr >> 16) & 0xF;
-    u32 offset = instr & 0xFFF;
-    if (offset & 0x800) {
+    u8 rt = (instr >> RD_SHIFT) & 0xF;
+    u8 rn = (instr >> RN_SHIFT) & 0xF;
+    u32 offset = instr & OFFSET_MASK;
+    if (offset & OFFSET_SIGN_BIT) {
 	offset |= 0xFFFFF000;
     }
     u32 addr = vm_get_reg(vm, rn) + offset;
@@ -270,9 +272,9 @@ exec_str(vm_state_t* vm, u32 instr)
 void
 exec_strb(vm_state_t* vm, u32 instr)
 {
-    u8 rt = (instr >> 12) & 0xF;
-    u8 rn = (instr >> 16) & 0xF;
-    u32 offset = instr & 0xFFF;
+    u8 rt = (instr >> RD_SHIFT) & 0xF;
+    u8 rn = (instr >> RN_SHIFT) & 0xF;
+    u32 offset = instr & OFFSET_MASK;
     if (offset & 0x800) {
 	offset |= 0xFFFFF000;
     }
@@ -316,6 +318,13 @@ exec_halt(vm_state_t* vm, u32 instr)
     vm->running = 0;
 }
 
+void
+exec_nop(vm_state_t* vm, u32 instr)
+{
+    (void)vm;
+    (void)instr;
+}
+
 static void
 syscall_handler(vm_state_t* vm)
 {
@@ -324,6 +333,8 @@ syscall_handler(vm_state_t* vm)
     u32 r1 = vm->regs.r[1];
     u32 r2 = vm->regs.r[2];
     u32 result = 0;
+
+    debug_syscall(vm->debug_config, vm, syscall);
 
     switch (syscall) {
     case SYSCALL_EXIT:
@@ -344,6 +355,7 @@ syscall_handler(vm_state_t* vm)
 	if (r0 == 1 || r0 == 2) {
 	    result = write(STDOUT_FILENO, (void*)(vm->mem.memory + r1), r2);
 	    vm->regs.r[0] = result;
+	    fflush(stdout);
 	} else {
 	    vm->regs.r[0] = -1;
 	}
@@ -361,11 +373,4 @@ exec_swi(vm_state_t* vm, u32 instr)
 {
     (void)instr;
     syscall_handler(vm);
-}
-
-void
-exec_nop(vm_state_t* vm, u32 instr)
-{
-    (void)vm;
-    (void)instr;
 }
