@@ -1,0 +1,65 @@
+
+BasedOnStyle:   LLVM
+
+# --- Indentation ---
+IndentWidth:        4
+TabWidth:           8
+UseTab:             ForIndentation
+ContinuationIndentWidth: 8
+
+# --- Line length ---
+ColumnLimit:        100
+
+# --- Braces ---
+BreakBeforeBraces:  Linux
+BraceWrapping:
+  AfterFunction:    true
+  AfterControlStatement: false
+  AfterStruct:      true
+  AfterEnum:        true
+  AfterUnion:       true
+  BeforeElse:       true
+  BeforeCatch:      true
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+# --- Function formatting ---
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine:    Never
+AllowShortIfStatementsOnASingleLine: Never
+AlwaysBreakAfterReturnType: All
+
+# --- Control statements ---
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+
+# --- Pointer & reference style ---
+PointerAlignment: Left
+DerivePointerAlignment: false
+
+# --- Alignment ---
+AlignOperands:        Align
+AlignTrailingComments: true
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+
+# --- Switch / case ---
+IndentCaseLabels: false
+
+# --- Comments ---
+ReflowComments: false
+CommentPragmas: '^ IWYU pragma:'
+
+# --- Preprocessor ---
+IndentPPDirectives: AfterHash
+MacroBlockBegin: ''
+MacroBlockEnd:   ''
+
+# --- Includes ---
+SortIncludes: false
+
+# --- Misc ---
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+
