@@ -12,16 +12,18 @@ usage() {
     echo ""
     echo "Commands:"
     echo "  build        Build the VM and assembler"
-    echo "  run <file>   Run a .vm program"
-    echo "  asm <file>   Assemble an .asm file to .vm"
+    echo "  run <file>   Run a .varm program"
+    echo "  asm <file>   Assemble a .vasm file to .varm"
+    echo "  asmrun <file> Assemble and run a .vasm file immediately"
     echo "  test         Run all tests"
     echo "  clean        Clean build directory"
     echo "  help         Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0 build"
-    echo "  $0 run program.vm"
-    echo "  $0 asm program.asm -o program.vm"
+    echo "  $0 run program.varm"
+    echo "  $0 asm program.vasm -o program.varm"
+    echo "  $0 asmrun program.vasm"
     echo "  $0 test"
 }
 
@@ -59,7 +61,7 @@ run() {
 asm() {
     if [ -z "$1" ]; then
         echo "Error: No input file specified"
-        echo "Usage: $0 asm <input.asm> [-o <output.vm>]"
+        echo "Usage: $0 asm <input.vasm> [-o <output.varm>]"
         exit 1
     fi
 
@@ -71,6 +73,37 @@ asm() {
     cd "$SCRIPT_DIR"
 
     "$VASM" "$@"
+}
+
+asmrun() {
+    if [ -z "$1" ]; then
+        echo "Error: No input file specified"
+        echo "Usage: $0 asmrun <input.vasm>"
+        exit 1
+    fi
+
+    if [ ! -f "$VASM" ]; then
+        echo "Assembler not built. Run '$0 build' first."
+        exit 1
+    fi
+
+    if [ ! -f "$VARM" ]; then
+        echo "VM not built. Run '$0 build' first."
+        exit 1
+    fi
+
+    cd "$SCRIPT_DIR"
+
+    if [ ! -f "$1" ]; then
+        echo "Error: File not found: $1"
+        exit 1
+    fi
+
+    temp_file=$(mktemp /tmp/varm_XXXXXX.varm)
+    trap "rm -f '$temp_file'" EXIT
+
+    "$VASM" "$1" -o "$temp_file"
+    "$VARM" "$temp_file"
 }
 
 test() {
@@ -160,6 +193,10 @@ case "$1" in
     asm)
         shift
         asm "$@"
+        ;;
+    asmrun)
+        shift
+        asmrun "$@"
         ;;
     test)
         test
