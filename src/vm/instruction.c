@@ -1,27 +1,29 @@
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include "../include/vm.h"
 
 static u32 decode_operand2(vm_state_t *vm, u32 instr) {
   u8 is_immediate = (instr >> 25) & 1;
+  u8 rotate = (instr >> 8) & 0xF;
+  u8 imm8 = instr & 0xFF;
+  u32 value = imm8;
+  if (rotate > 0) {
+    value = (imm8 >> (rotate * 2)) | (imm8 << (32 - rotate * 2));
+  }
   if (is_immediate) {
-    u8 rotate = (instr >> 8) & 0xF;
-    u8 imm8 = instr & 0xFF;
-    u32 value = imm8;
-    if (rotate > 0) {
-      value = (imm8 >> (rotate * 2)) | (imm8 << (32 - rotate * 2));
-    }
     return value;
   } else {
     u8 rm = instr & 0xF;
     u8 shift_type = (instr >> 5) & 0x3;
     u8 shift_imm = (instr >> 7) & 0x1F;
-    u32 value = vm_get_reg(vm, rm);
+    u32 reg_value = vm_get_reg(vm, rm);
     switch (shift_type) {
-      case 0: return value << shift_imm;
-      case 1: return value >> shift_imm;
-      case 2: return (value >> shift_imm) | ((value & 0x80000000) >> (32 - shift_imm));
-      case 3: return (value >> shift_imm) | (value << (32 - shift_imm));
-      default: return value;
+      case 0: return reg_value << shift_imm;
+      case 1: return reg_value >> shift_imm;
+      case 2: return (reg_value >> shift_imm) | ((reg_value & 0x80000000) >> (32 - shift_imm));
+      case 3: return (reg_value >> shift_imm) | (reg_value << (32 - shift_imm));
+      default: return reg_value;
     }
   }
 }
@@ -255,11 +257,47 @@ void exec_halt(vm_state_t *vm, u32 instr) {
   vm->running = 0;
 }
 
+static void syscall_handler(vm_state_t *vm) {
+  u32 syscall = vm->regs.r[7];
+  u32 r0 = vm->regs.r[0];
+  u32 r1 = vm->regs.r[1];
+  u32 r2 = vm->regs.r[2];
+  u32 result = 0;
+
+  switch (syscall) {
+    case SYSCALL_EXIT:
+      vm->exit_code = r0 & 0xFF;
+      vm->running = 0;
+      break;
+
+    case SYSCALL_READ:
+      if (r0 == 0) {
+        result = read(STDIN_FILENO, (void *)(vm->mem.memory + r1), r2);
+        vm->regs.r[0] = result;
+      } else {
+        vm->regs.r[0] = -1;
+      }
+      break;
+
+    case SYSCALL_WRITE:
+      if (r0 == 1 || r0 == 2) {
+        result = write(STDOUT_FILENO, (void *)(vm->mem.memory + r1), r2);
+        vm->regs.r[0] = result;
+      } else {
+        vm->regs.r[0] = -1;
+      }
+      break;
+
+    default:
+      printf("Unknown syscall: %u\n", syscall);
+      vm->running = 0;
+      break;
+  }
+}
+
 void exec_swi(vm_state_t *vm, u32 instr) {
-  u32 syscall = instr & 0xFFFFFF;
-  (void)syscall;
-  printf("SWI #%u\n", syscall);
-  vm->running = 0;
+  (void)instr;
+  syscall_handler(vm);
 }
 
 void exec_nop(vm_state_t *vm, u32 instr) {

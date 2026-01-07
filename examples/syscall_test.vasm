@@ -1,0 +1,21 @@
+; syscall_test.vasm - Simple syscall test using immediate values
+        mov r0, #65            ; character 'A'
+        mov r1, #0             ; r1 = 0x00000000
+        mov r2, #0             ; clear r2
+        add r2, r2, #0         ; r2 = 0
+        add r2, r2, #0         ; r2 = 0
+        add r2, r2, #0         ; r2 = 0
+        add r2, r2, #0         ; r2 = 0
+        add r2, r2, #0         ; r2 = 0
+        add r2, r2, #0         ; r2 = 0
+        add r2, r2, #0         ; r2 = 0
+        add r2, r2, #0         ; r2 = 0
+        add r2, r2, #16        ; r2 = 0x00000010 (buffer address)
+        strb r0, [r2, #0]      ; store 'A' at buffer
+        mov r0, #1             ; fd = stdout
+        mov r7, #3             ; syscall = WRITE
+        swi                    ; write to stdout
+
+        mov r0, #0             ; exit code = 0
+        mov r7, #1             ; syscall = EXIT
+        swi                    ; exit

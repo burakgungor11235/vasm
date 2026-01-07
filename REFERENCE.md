@@ -2,7 +2,7 @@
 
 ## Overview
 
-varm (Virtual Abstract Runtime Machine) is a simple educational ARM-like register-based virtual machine. All values are stored in little-endian format, both in memory and in `.varm` files.
+varm (Virtual Abstract Runtime Machine) is a simple ARM-like register-based virtual machine. All values are stored in little-endian format, both in memory and in `.varm` files.
 
 ## Architecture
 
@@ -159,6 +159,7 @@ Offset is signed, in bytes.
 ### Label Resolution
 
 The assembler uses a two-pass approach:
+
 1. First pass: collect all labels and their addresses
 2. Second pass: resolve label references in instructions
 
@@ -214,6 +215,7 @@ The assembler uses a two-pass approach:
 | 0x32 | BX | BX Rn | Branch and Exchange (PC = Rn) |
 
 **Branch offset calculation:**
+
 ```
 offset = sign_extend(instr[19:0])  ; 20-bit signed
 target = PC + 4 + (offset << 2)    ; word offset, PC is address of next instruction
@@ -226,8 +228,53 @@ target = PC + 4 + (offset << 2)    ; word offset, PC is address of next instruct
 | Opcode | Name | Syntax | Description |
 |--------|------|--------|-------------|
 | 0x40 | HALT | HALT | Stop execution, exit with code 0 |
-| 0x41 | SWI | SWI #imm | Software interrupt (reserved) |
+| 0x41 | SWI | SWI | Software interrupt (syscall) |
 | 0x42 | NOP | NOP | No operation |
+
+### Syscalls (SWI)
+
+Syscalls are invoked via the SWI instruction. The syscall number is passed in R7.
+
+| Number | Name | R0 | R1 | R2 | Return |
+|--------|------|----|----|----|--------|
+| 1 | EXIT | exit_code | - | - | - |
+| 2 | READ | fd | buffer | count | bytes_read |
+| 3 | WRITE | fd | buffer | count | bytes_written |
+
+**Syscall conventions:**
+
+- R7 = syscall number (1=EXIT, 2=READ, 3=WRITE)
+- R0, R1, R2 = arguments (see table above)
+- Return value in R0
+- READ/WRITE only support fd 0 (stdin) and 1 (stdout)
+
+**Example - Exit with code 42:**
+
+```asm
+mov r0, #42
+mov r7, #1
+swi
+```
+
+**Example - Write to stdout:**
+
+```asm
+ldr r1, =msg    ; buffer address
+mov r2, #5      ; length
+mov r0, #1      ; fd = stdout
+mov r7, #3      ; syscall = WRITE
+swi
+```
+
+**Example - Read from stdin:**
+
+```asm
+ldr r1, =buffer ; buffer address
+mov r2, #10     ; max bytes
+mov r0, #0      ; fd = stdin
+mov r7, #2      ; syscall = READ
+swi            ; R0 = bytes read
+```
 
 ## Calling Convention
 
@@ -240,12 +287,14 @@ varm uses a simple calling convention:
 - **PC:** Program counter (R15)
 
 **Function call (BL):**
+
 1. Caller pushes any registers that need to be preserved
 2. BL saves return address (PC+4) to LR
 3. Function executes
 4. Return via BX LR
 
 **Stack:**
+
 - Initial SP = 0x000FFFFF (top of memory)
 - Stack grows downward (toward lower addresses)
 - PUSH decrements SP, then stores
@@ -267,6 +316,7 @@ varm uses a simple calling convention:
 | 28 | 4 | Flags | Reserved (set to 0) |
 
 **Loading:** On start, the VM loads:
+
 - Text section to address 0x00000000
 - Data section to address 0x00010000
 - Sets PC to the entry point address
@@ -281,6 +331,7 @@ The assembler (`vasm`) performs:
 4. **Output:** Write `.varm` file with header and sections
 
 **Supported number formats:**
+
 - Decimal: `42`
 - Hexadecimal: `0x2A`
 - Binary: `0b101010`
@@ -355,8 +406,4 @@ factorial:
 program.vasm (source) -> vasm (assembler) -> program.varm (bytecode) -> varm (VM)
 ```
 
-## Revision History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2025-01-07 | Initial specification |
+---

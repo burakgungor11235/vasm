@@ -1,0 +1,3 @@
+; test_r7.vasm - Test setting R7
+        mov r7, #42
+        halt

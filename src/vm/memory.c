@@ -37,6 +37,7 @@ void vm_reset(vm_state_t *vm) {
   vm->mem.data_size = 0;
   vm->running = 1;
   vm->debug = 0;
+  vm->exit_code = 0;
 }
 
 u32 vm_mem_read32(vm_state_t *vm, u32 addr) {

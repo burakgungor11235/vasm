@@ -4,30 +4,7 @@
 #include <stdio.h>
 #include <strings.h>
 #include "../../include/vm.h"
-
-typedef enum {
-  TOKEN_EOF,
-  TOKEN_INSTRUCTION,
-  TOKEN_DIRECTIVE,
-  TOKEN_LABEL,
-  TOKEN_REGISTER,
-  TOKEN_IMMEDIATE,
-  TOKEN_IDENTIFIER,
-  TOKEN_STRING,
-  TOKEN_COMMA,
-  TOKEN_LBRACKET,
-  TOKEN_RBRACKET,
-  TOKEN_EXCLAM,
-  TOKEN_HASH,
-  TOKEN_NEWLINE
-} token_type_t;
-
-typedef struct {
-  token_type_t type;
-  char *value;
-  int line;
-  int column;
-} token_t;
+#include "../../include/assembler.h"
 
 static int is_whitespace(char c) {
   return c == ' ' || c == '\t' || c == '\r';
@@ -93,6 +70,16 @@ int tokenize(const char *input, token_t *tokens, int max_tokens) {
 
     if (*p == ',') {
       tokens[token_count].type = TOKEN_COMMA;
+      tokens[token_count].value = NULL;
+      tokens[token_count].line = line;
+      tokens[token_count].column = p - input;
+      token_count++;
+      p++;
+      continue;
+    }
+
+    if (*p == '=') {
+      tokens[token_count].type = TOKEN_EQUAL;
       tokens[token_count].value = NULL;
       tokens[token_count].line = line;
       tokens[token_count].column = p - input;
@@ -173,12 +160,13 @@ int tokenize(const char *input, token_t *tokens, int max_tokens) {
       while (is_identifier_char(*p)) p++;
       int len = p - start;
 
-      if (p[-1] == ':') {
-        tokens[token_count].type = TOKEN_LABEL;
-        tokens[token_count].value = strdup_len(start, len - 1);
-        tokens[token_count].line = line;
-        token_count++;
-      } else {
+       if (*p == ':') {
+         tokens[token_count].type = TOKEN_LABEL;
+         tokens[token_count].value = strdup_len(start, len);
+         tokens[token_count].line = line;
+         token_count++;
+         p++;
+       } else {
         char *name = strdup_len(start, len);
 
         static const char *instructions[] = {

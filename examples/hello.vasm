@@ -1,0 +1,14 @@
+; hello.vasm - Hello World using syscalls
+        .data
+msg:    .byte 'H', 'e', 'l', 'l', 'o', '!', 10
+
+        .text
+        mov r0, #1          ; fd = stdout
+        ldr r1, =msg        ; r1 = address of msg
+        mov r2, #7          ; length = 7
+        mov r7, #3          ; syscall = WRITE
+        swi                 ; write to stdout
+
+        mov r0, #0          ; exit code = 0
+        mov r7, #1          ; syscall = EXIT
+        swi                 ; exit

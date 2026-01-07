@@ -83,6 +83,35 @@ test() {
 
     cd "$SCRIPT_DIR"
 
+    echo ""
+    echo "=== Unit Tests ==="
+    if [ -f "$BUILD_DIR/src/unit_lexer" ]; then
+        "$BUILD_DIR/src/unit_lexer"
+        UNIT_RESULT=$?
+        if [ $UNIT_RESULT -ne 0 ]; then
+            echo "Unit tests failed!"
+            exit 1
+        fi
+    else
+        echo "Unit tests not built. Run '$0 build' first."
+        exit 1
+    fi
+
+    if [ -f "$BUILD_DIR/src/unit_parser" ]; then
+        "$BUILD_DIR/src/unit_parser"
+        UNIT_RESULT=$?
+        if [ $UNIT_RESULT -ne 0 ]; then
+            echo "Unit tests failed!"
+            exit 1
+        fi
+    else
+        echo "Parser unit tests not built. Run '$0 build' first."
+        exit 1
+    fi
+
+    echo ""
+    echo "=== Integration Tests (Example Programs) ==="
+
     FAILED=0
     PASSED=0
 

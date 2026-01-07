@@ -24,10 +24,6 @@ debug_sources = [
   'debug/disasm.c',
 ]
 
-test_sources = [
-  'test/framework.c',
-]
-
 executable('varm',
   'main.c',
   vm_sources,
@@ -43,3 +39,16 @@ executable('vasm',
   include_directories: include_directories('../../include'),
   dependencies: [],
 )
+
+# Unit test executables
+unit_lexer = executable('unit_lexer', 'test/unit/lexer.c',
+  include_directories: include_directories('../../include'),
+)
+
+unit_parser = executable('unit_parser', 'test/unit/parser.c',
+  include_directories: include_directories('../../include'),
+)
+
+# Meson test definitions
+test('unit_lexer', unit_lexer)
+test('unit_parser', unit_parser)

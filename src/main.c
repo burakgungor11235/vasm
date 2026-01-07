@@ -37,6 +37,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  vm->exit_code = 0;
+
   if (vm_load(vm, filename) != 0) {
     fprintf(stderr, "Failed to load program: %s\n", filename);
     vm_destroy(vm);
@@ -49,6 +51,7 @@ int main(int argc, char **argv) {
 
   vm_run(vm);
 
+  int exit_code = vm->exit_code;
   vm_destroy(vm);
-  return 0;
+  return exit_code;
 }

@@ -77,6 +77,12 @@ void vm_step(vm_state_t *vm) {
   u32 instr = vm_mem_read32(vm, vm->regs.pc);
   u8 opcode = (instr >> 24) & 0xFF;
   u8 cond = (instr >> 20) & 0xF;
+  u8 rd = (instr >> 12) & 0xF;
+  u8 rn = (instr >> 16) & 0xF;
+  u32 operand = instr & 0xFFF;
+
+  if (vm->regs.pc >= 0x50 && vm->regs.pc < 0x70) {
+  }
 
   vm->regs.pc += 4;
 

@@ -107,7 +107,14 @@ typedef struct {
   memory_t mem;
   int running;
   int debug;
+  int exit_code;
 } vm_state_t;
+
+typedef enum {
+  SYSCALL_EXIT = 1,
+  SYSCALL_READ = 2,
+  SYSCALL_WRITE = 3,
+} syscall_num_t;
 
 u32 check_condition(vm_state_t *vm, u8 cond);
 void set_nzcv(vm_state_t *vm, u32 result);
