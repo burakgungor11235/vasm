@@ -34,3 +34,7 @@ Thumbs.db
 
 # Meson
 meson-private/
+
+# Generated files (track directory, ignore contents)
+/src/asm/generated/*
+!/src/asm/generated/.gitkeep
