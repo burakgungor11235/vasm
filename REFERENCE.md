@@ -849,27 +849,6 @@ Output: Exit code 42
 
 ## Known Issues
 
-### ALU Instruction Encoding Bug
-
-**Affected:** Instructions with rn field (ADD, SUB, CMP, etc.)
-
-**Symptom:** Instructions execute incorrectly or loop infinitely.
-
-**Cause:** The parser incorrectly encodes ALU instructions with `OPERAND_IMM_FLAG`, which corrupts the rn field.
-
-**Example:**
-```asm
-; Source
-sub r0, r0, #1
-
-; Encoded as (incorrectly)
-; rn = 8 instead of 0, causing unpredictable behavior
-```
-
-**Workaround:** Use only `MOV` instructions and `LDR`/`LDRB` for register operations until fixed.
-
-**Status:** Scheduled for fix in next release.
-
 ### Character Literals
 
 Character literals use ASCII values:
