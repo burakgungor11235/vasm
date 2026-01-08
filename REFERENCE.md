@@ -106,7 +106,7 @@ The offset is a signed 20-bit word offset. Target = PC + 4 + (sign_extend(offset
 
 The operand2 field can be either an immediate value or a register with optional shift.
 
-### Immediate Form (bit 25 = 1)
+### Immediate Form (bit 19 = 1)
 
 ```
 11:8 rotate  |  7:0 imm8
@@ -114,7 +114,12 @@ The operand2 field can be either an immediate value or a register with optional 
 
 Value = ROR(imm8, rotate * 2). Example: #0xFF000000 = rotate 0xFF by 24.
 
-### Register Form (bit 25 = 0)
+**Encoding Note:** The immediate flag uses bit 19 (not bit 25 as in ARM) because:
+- varm uses 8-bit opcode (bits 24-31), so bits 25-28 overlap with the opcode field
+- Bit 19 falls in the rn field, which is unused by MOV/MVN instructions
+- This allows clean encoding without corrupting other fields
+
+### Register Form (bit 19 = 0)
 
 ```
 11:10 shift_type  |  9:5 shift_imm  |  4:0 rm
@@ -141,6 +146,8 @@ Value = ROR(imm8, rotate * 2). Example: #0xFF000000 = rotate 0xFF by 24.
 
 **Immediate:** `#42`, `#0x2A`, `#0b101010`
 
+**Character Literal:** `'A'`, `'H'`, `'\n'` (converts to ASCII value)
+
 **Memory:** `[r0]`, `[r1, #4]`, `[sp, #-4]`
 
 Offset is signed, in bytes.
@@ -152,9 +159,40 @@ Offset is signed, in bytes.
 | .text | .text | Start code section |
 | .data | .data | Start data section |
 | .word | .word val, ... | Emit 32-bit values |
-| .byte | .byte val, ... | Emit 8-bit values |
+| .byte | .byte val, ... | Emit 8-bit values (supports character literals like `'H'`) |
 | .equ | .equ name, value | Define constant |
 | .global | .global name | Export symbol |
+
+**Character Literal Examples:**
+```asm
+.data
+msg:    .byte 'H', 'e', 'l', 'l', 'o', '!', 10  ; 10 = newline
+newline: .byte '\n'
+hex_val: .byte 0xFF
+```
+
+### Opcode Bit Position Defines
+
+The VM source code uses named defines for instruction bit positions:
+
+| Define | Value | Description |
+|--------|-------|-------------|
+| OPCODE_SHIFT | 24 | Bit position of opcode field |
+| COND_SHIFT | 20 | Bit position of condition field |
+| RN_SHIFT | 16 | Bit position of first source register |
+| RD_SHIFT | 12 | Bit position of destination register |
+| ROTATE_SHIFT | 8 | Bit position of rotate in operand2 |
+| OFFSET_MASK | 0xFFF | Mask for 12-bit offset field |
+| OFFSET_SIGN_BIT | 0x800 | Sign bit for signed offset |
+| OPERAND_IMM_FLAG | (1 << 19) | Flag: operand2 is immediate (not register) |
+
+**Usage in VM:**
+```c
+u8 opcode = (instr >> OPCODE_SHIFT) & 0xFF;
+u8 cond = (instr >> COND_SHIFT) & 0xF;
+u8 rd = (instr >> RD_SHIFT) & 0xF;
+u8 is_immediate = (instr >> 19) & 1;
+```
 
 ### Label Resolution
 
@@ -335,8 +373,86 @@ The assembler (`vasm`) performs:
 - Decimal: `42`
 - Hexadecimal: `0x2A`
 - Binary: `0b101010`
+- Character literal: `'A'`, `'H'`
+
+### Literal Pool and =label Pseudo-Instruction
+
+The assembler uses a **literal pool** to handle 32-bit label addresses. When you use `=label` syntax:
+
+```asm
+ldr r1, =msg    ; Load address of msg into r1
+```
+
+The assembler:
+1. Adds the label value (0x10000) to a literal pool at the end of the text section
+2. Emits an LDR instruction with a PC-relative offset to the literal pool entry
+3. Fixes up the offset after the literal pool is placed
+
+**Example:**
+```asm
+.data
+msg:    .byte 'H', 'e', 'l', 'l', 'o', '!', 10
+
+.text
+        mov r0, #1          ; fd = stdout
+        ldr r1, =msg        ; r1 = address of msg (0x10000)
+        mov r2, #7          ; length = 7
+        mov r7, #3          ; syscall = WRITE
+        swi
+```
+
+**Generated instruction sequence:**
+```
+0x20: MOV r0, #1
+0x24: LDR r1, [pc, #24]    ; Points to literal pool at 0x28
+0x28: 0x00010000           ; Literal pool entry: msg address
+0x2C: MOV r2, #7
+0x30: MOV r7, #3
+0x34: SWI
+```
+
+**Debug the literal pool:**
+```bash
+./vasm -d program.vasm -o program.varm
+# Output includes:
+# [POOL] emit_literal_pool: text_size=8, pool_start=32, count=1
+# [POOL]   pool[0]: value=0x00010000, offset=32
+```
 
 ## Examples
+
+### Hello World
+
+```asm
+; hello.vasm - Print "Hello!" using syscalls
+        .data
+msg:    .byte 'H', 'e', 'l', 'l', 'o', '!', 10
+
+        .text
+        mov r0, #1          ; fd = stdout (1)
+        ldr r1, =msg        ; r1 = address of msg (0x10000)
+        mov r2, #7          ; length = 7 bytes
+        mov r7, #3          ; syscall = WRITE (3)
+        swi                 ; write(fd=1, buf=0x10000, count=7)
+
+        mov r0, #0          ; exit code = 0
+        mov r7, #1          ; syscall = EXIT (1)
+        swi                 ; exit(0)
+```
+
+**Run it:**
+```bash
+./qol.sh asmrun examples/hello.vasm
+# Output: Hello!
+```
+
+**With debug:**
+```bash
+./qol.sh asmrun -d examples/hello.vasm
+# Shows label resolution and literal pool
+./varm -d SYSCALL examples/hello.varm
+# Shows syscall execution
+```
 
 ### Simple Register Move
 
@@ -384,6 +500,33 @@ factorial:
         bx lr
 ```
 
+### Syscall Examples
+
+**Exit with code 42:**
+```asm
+mov r0, #42
+mov r7, #1
+swi
+```
+
+**Write to stdout:**
+```asm
+mov r0, #1          ; fd = stdout
+ldr r1, =msg        ; buffer address
+mov r2, #5          ; length
+mov r7, #3          ; syscall = WRITE
+swi
+```
+
+**Read from stdin:**
+```asm
+mov r0, #0          ; fd = stdin
+ldr r1, =buffer     ; buffer address
+mov r2, #10         ; max bytes
+mov r7, #2          ; syscall = READ
+swi                 ; R0 = bytes read
+```
+
 ## Usage
 
 ```bash
@@ -391,13 +534,48 @@ factorial:
 ./qol.sh build
 
 # Assemble a program
-./qol.sh examples/simple.vasm -o program.varm
+./qol.sh asm examples/simple.vasm -o program.varm
 
 # Run a program
 ./qol.sh run program.varm
 
+# Assemble and run in one command
+./qol.sh asmrun examples/hello.vasm
+
 # Run all tests
 ./qol.sh test
+
+# Run with VM debug output
+./qol.sh run -d INSTR program.varm
+
+# Assemble with assembler debug output
+./qol.sh asm -d examples/hello.vasm -o hello.varm
+```
+
+### qol.sh Color Output
+
+The convenience script color-codes output:
+
+| Color | Prefix | Meaning |
+|-------|--------|---------|
+| Green | `[stdout]` | Standard output from program |
+| Red | `[stderr]` | Standard error (debug output) |
+
+### asmrun Command
+
+The `asmrun` command assembles and immediately runs a program:
+
+```bash
+# Basic usage
+./qol.sh asmrun program.vasm
+
+# With debug output
+./qol.sh asmrun -d program.vasm
+
+# Equivalent to:
+./qol.sh asm program.vasm -o /tmp/program.varm
+./qol.sh run /tmp/program.varm
+rm /tmp/program.varm
 ```
 
 ## Debug Mode
@@ -425,13 +603,35 @@ The VM includes a tag-based debug system for tracing execution.
 
 ### Debug Tags
 
-| Tag | Description |
-|-----|-------------|
-| `instr` | Trace every instruction execution |
-| `regs` | Dump registers after each instruction |
-| `mem` | Log all memory accesses |
-| `syscall` | Trace system calls |
-| `stats` | Show execution statistics at end |
+| Tag | Abbr | Description |
+|-----|------|-------------|
+| `instr` | INSTR | Trace every instruction execution |
+| `regs` | REGS | Dump registers after each instruction |
+| `mem` | MEM | Log all memory accesses |
+| `syscall` | SYSCALL | Trace system calls |
+| `stats` | STATS | Show execution statistics at end |
+
+### Assembler Debug Tags
+
+The assembler (`vasm`) has its own debug tags for tracing the assembly process:
+
+| Tag | Abbr | Description |
+|-----|------|-------------|
+| `asm` | ASM | General assembler diagnostics |
+| `label` | LABEL | Label resolution and =label pseudo-instruction |
+| `pool` | POOL | Literal pool allocation and fixup |
+
+**Assembler Debug Usage:**
+```bash
+# Enable all assembler debug output
+./vasm -d examples/hello.vasm -o hello.varm
+
+# Sample output:
+# [LABEL] =label pseudo-instr: label='msg' addr=0x10000 rd=1
+# [POOL] emit_literal_pool: text_size=8, pool_start=32, count=1
+# [POOL]   pool[0]: value=0x00010000, offset=32
+# [POOL]   fixup LDR at 4: pool_offset=32, byte_offset=24, offset=24
+```
 
 ### Examples
 
@@ -506,4 +706,179 @@ Statistics format:
 program.vasm (source) -> vasm (assembler) -> program.varm (bytecode) -> varm (VM)
 ```
 
+## Troubleshooting
+
+### Common Issues
+
+#### "Unknown syscall" or Incorrect Register Values
+
+**Symptom:** Program prints nothing or behaves incorrectly, r7 shows unexpected values.
+
+**Cause:** Immediate values being incorrectly encoded as register operands.
+
+**Check:** Use syscall debug to verify register values:
+```bash
+./varm -d SYSCALL program.varm
+```
+
+#### Data Section at Wrong Address
+
+**Symptom:** Labels in `.data` section point to wrong addresses, causing segfaults.
+
+**Cause:** Data loaded to file offset instead of virtual address.
+
+**Check:** Verify data section loading:
+```bash
+./varm -d MEM program.varm | grep 0x10000
+```
+
+#### Character Literals Not Working
+
+**Symptom:** `.byte 'H'` causes assembly error.
+
+**Solution:** Ensure you're using single quotes:
+```asm
+; Correct
+.byte 'H', 'e', 'l', 'l', 'o'
+
+; Incorrect - will not work
+.byte "Hello"
+```
+
+### Debugging Workflow
+
+1. **Enable assembler debug** to trace assembly:
+```bash
+./vasm -d program.vasm -o program.varm
+```
+
+2. **Check instruction encoding**:
+```bash
+./varm -d INSTR program.varm
+```
+
+3. **Trace syscalls** to verify system interaction:
+```bash
+./varm -d SYSCALL program.varm
+```
+
+4. **Dump registers** to see register state:
+```bash
+./varm -d REGS program.varm
+```
+
+5. **Full trace** for complex issues:
+```bash
+./varm -d INSTR -d REGS -d SYSCALL program.varm
+```
+
+### Performance Notes
+
+- Debug overhead: ~5-10% per enabled tag
+- Memory overhead: ~200 bytes per debug_config
+- **Recommended:** Use `-d SYSCALL` for production tracing (minimal overhead)
+- **Warning:** `-d MEM` and `-d INSTR` have higher overhead on large programs
+
 ---
+
+## Example Programs
+
+The `examples/` directory contains several demonstration programs:
+
+| Program | Description | Concepts Demonstrated |
+|---------|-------------|----------------------|
+| `hello.vasm` | Print "Hello!" to stdout | Syscalls, data section, labels |
+| `print_char.vasm` | Print a single character | Character literals, syscalls |
+| `simple.vasm` | Simple computation | Basic instructions |
+| `memory_load.vasm` | Load values from memory | LDR with labels, word loads |
+| `multiple_loads.vasm` | Load multiple values | Multiple LDR/LDRB instructions |
+| `addition.vasm` | Exit with value 42 | Immediate values, MOV |
+
+### Running Examples
+
+```bash
+# Run any example
+./qol.sh run examples/hello.varm
+
+# Assemble and run
+./qol.sh asmrun examples/hello.vasm
+
+# With debug output
+./qol.sh asmrun -d examples/hello.vasm
+./varm -d SYSCALL examples/hello.varm
+```
+
+### Example: Memory Load
+
+```asm
+; memory_load.vasm - Load a value from data section
+
+        .data
+value:  .word 12345
+
+        .text
+        ldr r0, =value       ; r0 = address of value
+        ldr r0, [r0]         ; r0 = *value = 12345
+        mov r7, #1           ; exit with value (truncated to 8 bits)
+        swi
+```
+
+Output: Exit code 57 (12345 & 0xFF = 0x3039 & 0xFF = 0x39 = 57)
+
+### Example: Multiple Loads
+
+```asm
+; multiple_loads.vasm - Load multiple values
+
+        .data
+val1:   .word 100
+val2:   .word 200
+val3:   .byte 42
+
+        .text
+        ldr r0, =val1
+        ldr r0, [r0]         ; r0 = 100
+        ldr r1, =val3
+        ldrb r1, [r1]        ; r1 = 42
+        mov r0, r1           ; exit with 42
+        mov r7, #1
+        swi
+```
+
+Output: Exit code 42
+
+## Known Issues
+
+### ALU Instruction Encoding Bug
+
+**Affected:** Instructions with rn field (ADD, SUB, CMP, etc.)
+
+**Symptom:** Instructions execute incorrectly or loop infinitely.
+
+**Cause:** The parser incorrectly encodes ALU instructions with `OPERAND_IMM_FLAG`, which corrupts the rn field.
+
+**Example:**
+```asm
+; Source
+sub r0, r0, #1
+
+; Encoded as (incorrectly)
+; rn = 8 instead of 0, causing unpredictable behavior
+```
+
+**Workaround:** Use only `MOV` instructions and `LDR`/`LDRB` for register operations until fixed.
+
+**Status:** Scheduled for fix in next release.
+
+### Character Literals
+
+Character literals use ASCII values:
+```asm
+.byte 'A'    ; = 65 (0x41)
+.byte 'H'    ; = 72 (0x48)
+.byte '\n'   ; = 10 (0x0A)
+```
+
+---
+
+**varm Reference Manual** - Virtual Abstract Runtime Machine
