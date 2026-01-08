@@ -101,12 +101,6 @@ init_exec_table(void)
 void
 vm_step(vm_state_t* vm)
 {
-    static int initialized = 0;
-    if (!initialized) {
-	init_exec_table();
-	initialized = 1;
-    }
-
     u32 pc = vm->regs.pc;
     u32 instr = vm_mem_read32(vm, pc);
 
@@ -132,6 +126,14 @@ vm_step(vm_state_t* vm)
 void
 vm_run(vm_state_t* vm)
 {
+    static volatile int initialized = 0;
+    if (!initialized) {
+	__sync_synchronize();
+	init_exec_table();
+	__sync_synchronize();
+	initialized = 1;
+    }
+
     while (vm->running) {
 	vm_step(vm);
     }

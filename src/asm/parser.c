@@ -644,8 +644,6 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 	    }
 
 	    int opcode = get_opcode(instr_name);
-	    fprintf(stderr, "[DEBUG] instr_name='%s' condition='%s' opcode=%d\n", instr_name,
-	            condition ? condition : "NULL", opcode);
 	    i++;
 
 	    if (opcode < 0) {

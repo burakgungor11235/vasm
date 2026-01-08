@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <strings.h>
-#include "../../include/vm.h"
+
 #include "../../include/assembler.h"
 
 static int

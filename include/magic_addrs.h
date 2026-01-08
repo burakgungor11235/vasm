@@ -16,6 +16,35 @@
  */
 
 /* ============================================================
+ * MEMORY LAYOUT
+ * ============================================================ */
+
+/* Total memory size: 1MB */
+#define MEMORY_SIZE (1024 * 1024)
+
+/* Text section starts at address 0 */
+#define TEXT_OFFSET 0x00000000
+
+/* Data section starts at address 0x10000 */
+#define DATA_OFFSET 0x00010000
+
+/* ============================================================
+ * INSTRUCTION FIELD SHIFTS
+ * ============================================================ */
+
+/* Opcode field position (bits 24-31) */
+#define OPCODE_SHIFT 24
+
+/* Condition field position (bits 20-23) */
+#define COND_SHIFT 20
+
+/* First source register position (bits 16-19) */
+#define RN_SHIFT 16
+
+/* Destination register position (bits 12-15) */
+#define RD_SHIFT 12
+
+/* ============================================================
  * BIT MASKS FOR INSTRUCTION FIELD EXTRACTION
  * ============================================================ */
 
@@ -37,6 +66,9 @@
 /* Mask for 20-bit branch offset (bits 0-19) - for varm instruction format */
 #define BRANCH20_OFFSET_MASK 0xFFFFF
 
+/* Mask for 12-bit operand/offset field (bits 0-11) */
+#define OFFSET_MASK 0xFFF
+
 /* Sign extension mask for 12-bit to 32-bit: 0xFFFFF000
  * Applied when OFFSET_SIGN_BIT is set to extend sign */
 #define SIGN_EXTEND_12 0xFFFFF000
@@ -52,6 +84,11 @@
 /* Immediate mode flag - bit 11 of operand field
  * Set to 1 for immediate operands, 0 for register operands */
 #define OPERAND_IMM_BIT (1 << 11)
+
+/* Immediate flag for operand2 in ALU instructions (bit 19 of instruction)
+ * When set, operand2 is in immediate form, else register form
+ * Note: This is different from OPERAND_IMM_BIT which is bit 11 of operand2 field */
+#define OPERAND_IMM_FLAG (1 << 19)
 
 /* Rotate field in immediate operand (bits 8-10, 3 bits) */
 #define IMM_ROTATE_MASK 0x700

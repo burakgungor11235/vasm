@@ -2,6 +2,7 @@
 #define VM_H
 
 #include "opcode.h"
+#include "magic_addrs.h"
 
 vm_state_t*
 vm_create(void);

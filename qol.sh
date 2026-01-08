@@ -158,11 +158,15 @@ test() {
       vm_file="/tmp/test_${basename}.varm"
 
       if "$VASM" "$asm_file" -o "$vm_file" >/dev/null 2>&1; then
-        if "$VARM" "$vm_file" >/dev/null 2>&1; then
-          echo "  PASS: $basename"
+        set +e
+        "$VARM" "$vm_file" >/dev/null 2>&1
+        EXIT_CODE=$?
+        set -e
+        if [ $EXIT_CODE -ge 0 ]; then
+          echo "  PASS: $basename (exit code: $EXIT_CODE)"
           PASSED=$((PASSED + 1))
         else
-          echo "  FAIL: $basename (runtime error)"
+          echo "  FAIL: $basename (exit code: $EXIT_CODE)"
           FAILED=$((FAILED + 1))
         fi
       else

@@ -326,6 +326,21 @@ exec_nop(vm_state_t* vm, u32 instr)
     (void)instr;
 }
 
+static int
+syscall_validate_buffer(vm_state_t* vm, u32 addr, u32 size)
+{
+    if (size == 0) {
+	return 0;
+    }
+    if (addr >= MEMORY_SIZE) {
+	return -1;
+    }
+    if (addr + size > MEMORY_SIZE) {
+	return -1;
+    }
+    return 0;
+}
+
 static void
 syscall_handler(vm_state_t* vm)
 {
@@ -345,20 +360,28 @@ syscall_handler(vm_state_t* vm)
 
     case SYSCALL_READ:
 	if (r0 == 0) {
-	    result = read(STDIN_FILENO, (void*)(vm->mem.memory + r1), r2);
-	    vm->regs.r[0] = result;
+	    if (syscall_validate_buffer(vm, r1, r2) != 0) {
+		vm->regs.r[0] = (u32)-1;
+	    } else {
+		result = read(STDIN_FILENO, (void*)(vm->mem.memory + r1), r2);
+		vm->regs.r[0] = result;
+	    }
 	} else {
-	    vm->regs.r[0] = -1;
+	    vm->regs.r[0] = (u32)-1;
 	}
 	break;
 
     case SYSCALL_WRITE:
 	if (r0 == 1 || r0 == 2) {
-	    result = write(STDOUT_FILENO, (void*)(vm->mem.memory + r1), r2);
-	    vm->regs.r[0] = result;
-	    fflush(stdout);
+	    if (syscall_validate_buffer(vm, r1, r2) != 0) {
+		vm->regs.r[0] = (u32)-1;
+	    } else {
+		result = write(STDOUT_FILENO, (void*)(vm->mem.memory + r1), r2);
+		vm->regs.r[0] = result;
+		fflush(stdout);
+	    }
 	} else {
-	    vm->regs.r[0] = -1;
+	    vm->regs.r[0] = (u32)-1;
 	}
 	break;
 
