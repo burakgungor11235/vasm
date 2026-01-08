@@ -287,9 +287,9 @@ exec_strb(vm_state_t* vm, u32 instr)
 void
 exec_b(vm_state_t* vm, u32 instr)
 {
-    u32 offset = instr & BRANCH_OFFSET_MASK;
-    if (offset & BRANCH_SIGN_BIT) {
-	offset |= SIGN_EXTEND_24;
+    u32 offset = instr & BRANCH20_OFFSET_MASK;
+    if (offset & BRANCH20_SIGN_BIT) {
+	offset |= 0xFFF00000;
     }
     vm->regs.pc = (vm->regs.pc - 4) + 8 + (offset << 2);
 }
@@ -298,9 +298,9 @@ void
 exec_bl(vm_state_t* vm, u32 instr)
 {
     vm->regs.lr = vm->regs.pc;
-    u32 offset = instr & BRANCH_OFFSET_MASK;
-    if (offset & BRANCH_SIGN_BIT) {
-	offset |= SIGN_EXTEND_24;
+    u32 offset = instr & BRANCH20_OFFSET_MASK;
+    if (offset & BRANCH20_SIGN_BIT) {
+	offset |= 0xFFF00000;
     }
     vm->regs.pc = (vm->regs.pc - 4) + 8 + (offset << 2);
 }

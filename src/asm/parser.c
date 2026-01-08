@@ -392,6 +392,35 @@ get_opcode(const char* name)
 	return OP_BL;
     if (strcasecmp(name, "bx") == 0)
 	return OP_BX;
+    /* Conditional branches: return OP_B, extract condition from suffix */
+    if (strcasecmp(name, "beq") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bne") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bcs") == 0 || strcasecmp(name, "bhs") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bcc") == 0 || strcasecmp(name, "blo") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bmi") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bpl") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bvs") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bvc") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bhi") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bls") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bge") == 0)
+	return OP_B;
+    if (strcasecmp(name, "blt") == 0)
+	return OP_B;
+    if (strcasecmp(name, "bgt") == 0)
+	return OP_B;
+    if (strcasecmp(name, "ble") == 0)
+	return OP_B;
     if (strcasecmp(name, "halt") == 0)
 	return OP_HALT;
     if (strcasecmp(name, "swi") == 0)
@@ -474,10 +503,11 @@ encode_immediate(u32 value)
 static void
 emit_instr(program_state_t* prog, u32 instr)
 {
+    u32 addr = prog->current_addr;
+    prog->current_addr += 4; /* Each instruction is 4 bytes */
     if (prog->in_text_section && prog->text_size < MAX_INSTRUCTIONS) {
 	prog->text[prog->text_size++] = instr;
     }
-    prog->current_addr += 4; /* Each instruction is 4 bytes */
 }
 
 /*
@@ -522,6 +552,7 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 
 	    if (strcasecmp(dir, ".text") == 0) {
 		prog->in_text_section = 1;
+		prog->current_addr = 0; /* Reset address counter for text section */
 		continue;
 	    }
 
@@ -593,11 +624,28 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 	    /* Extract condition suffix (e.g., "eq" from "moveq") */
 	    char* dot = strchr(instr_name, '.');
 	    if (dot != NULL) {
+		/* Dot notation: "b.eq" or "moveq" */
 		*dot = '\0';
 		condition = dot + 1;
+	    } else if (strlen(instr_name) > 2 && instr_name[0] == 'b') {
+		/* Check for conditional branch suffixes: "beq", "bne", etc. */
+		static const char* suffixes[] = {"eq", "ne", "cs", "hs", "cc", "lo", "mi", "pl",
+		                                 "vs", "vc", "hi", "ls", "ge", "lt", "gt", "le"};
+		for (int c = 0; c < 16; c++) {
+		    const char* suffix = suffixes[c];
+		    if (strcasecmp(instr_name + 1, suffix) == 0) {
+			/* Found conditional branch: "beq", "bne", etc. */
+			/* Strip the suffix to get base mnemonic "b" */
+			instr_name = "b";
+			condition = (char*)suffix;
+			break;
+		    }
+		}
 	    }
 
 	    int opcode = get_opcode(instr_name);
+	    fprintf(stderr, "[DEBUG] instr_name='%s' condition='%s' opcode=%d\n", instr_name,
+	            condition ? condition : "NULL", opcode);
 	    i++;
 
 	    if (opcode < 0) {
@@ -617,8 +665,11 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
        * =====================================================
        */
 	    if (opcode == OP_B || opcode == OP_BL) {
+		u32 branch_addr = prog->current_addr; /* Save address before emit_instr */
 		if (i < token_count && tokens[i].type == TOKEN_IDENTIFIER) {
-		    add_reloc(prog, tokens[i].value, prog->current_addr,
+		    ASM_DEBUG("BRANCH: Adding reloc for '%s' at addr 0x%X\n", tokens[i].value,
+		              branch_addr);
+		    add_reloc(prog, tokens[i].value, branch_addr,
 		              opcode == OP_BL || opcode == OP_B);
 		    offset = 0;
 		    i++;
@@ -630,8 +681,10 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
          * Branch format per REFERENCE.md:
          *   31:24 opcode | 23:20 cond | 19:0 offset (signed, << 2)
          */
-		instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
-		        (offset & 0xFFFFF);
+		u8 cond = parse_condition(condition);
+		instr = (opcode << OPCODE_SHIFT) | (cond << COND_SHIFT) | (offset & 0xFFFFF);
+		ASM_DEBUG("BRANCH: after encoding instr=0x%X opcode=%d cond=%d offset=%d\n", instr,
+		          opcode, cond, offset);
 		emit_instr(prog, instr);
 		continue;
 	    }
@@ -1023,17 +1076,37 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
     }
 
     /*
-   * Second pass: resolve label references
-   * Branches need offset calculation, other refs are direct addresses
-   */
+    * Second pass: resolve label references
+    * Branches need offset calculation, other refs are direct addresses
+    */
+    ASM_DEBUG("RELOC: reloc_count=%d\n", prog->reloc_count);
     for (int j = 0; j < prog->reloc_count; j++) {
 	int addr = lookup_label(prog, prog->relocs[j].name);
+	ASM_DEBUG("RELOC: j=%d name='%s' addr=0x%X reloc_addr=0x%X is_branch=%d\n", j,
+	          prog->relocs[j].name, addr, prog->relocs[j].address, prog->relocs[j].is_branch);
 	if (addr >= 0) {
 	    u32* patch_addr = &prog->text[prog->relocs[j].address / 4];
 	    if (prog->relocs[j].is_branch) {
-		/* Branch offset: (target - current - 8) / 4 */
-		u32 offset = (addr - prog->relocs[j].address - 8) / 4;
-		*patch_addr = (*patch_addr & 0xFF000000) | (offset & 0xFFFFF);
+		/* Branch offset: (target - current - 4) / 4
+		 * VM increments PC by 4 after each instruction fetch.
+		 * At exec time: PC = current_addr + 4
+		 * We want: PC + offset*4 = target
+		 * So: offset*4 = target - (current_addr + 4)
+		 *    offset = (target - current_addr - 4) / 4
+		 *
+		 * Use signed arithmetic for correct negative offsets (backward branches)
+		 */
+		signed int signed_offset = (addr - (int)prog->relocs[j].address - 4) / 4;
+		u32 offset = (u32)signed_offset;
+		ASM_DEBUG("RELOC: Patching branch: signed_offset=%d offset=0x%X masked=0x%X at "
+		          "addr 0x%X (text[%d])\n",
+		          signed_offset, offset, offset & 0xFFFFF, prog->relocs[j].address,
+		          prog->relocs[j].address / 4);
+		ASM_DEBUG("RELOC: text[%d] before=0x%08X\n", prog->relocs[j].address / 4,
+		          prog->text[prog->relocs[j].address / 4]);
+		*patch_addr = (*patch_addr & 0xFFF0FFFF) | (offset & 0xFFFFF);
+		ASM_DEBUG("RELOC: text[%d] after=0x%08X\n", prog->relocs[j].address / 4,
+		          prog->text[prog->relocs[j].address / 4]);
 	    } else {
 		*patch_addr = addr;
 	    }

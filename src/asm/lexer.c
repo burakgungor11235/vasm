@@ -202,10 +202,12 @@ tokenize(const char* input, token_t* tokens, int max_tokens)
 		char* name = strdup_len(start, len);
 
 		static const char* instructions[] = {
-		        "mov", "mvn",  "add", "adc",  "sub", "sbc", "rsb", "rsc",  "and",
-		        "eor", "orr",  "bic", "cmp",  "cmn", "tst", "teq", "mul",  "mla",
-		        "ldr", "ldrb", "str", "strb", "b",   "bl",  "bx",  "halt", "swi",
-		        "nop", "push", "pop", "call", "ret", NULL};
+		        "mov", "mvn", "add", "adc", "sub", "sbc", "rsb", "rsc", "and", "eor", "orr",
+		        "bic", "cmp", "cmn", "tst", "teq", "mul", "mla", "ldr", "ldrb", "str",
+		        "strb", "b", "bl", "bx", "halt", "swi", "nop", "push", "pop", "call", "ret",
+		        /* Conditional branches */
+		        "beq", "bne", "bcs", "bhs", "bcc", "blo", "bmi", "bpl", "bvs", "bvc", "bhi",
+		        "bls", "bge", "blt", "bgt", "ble", NULL};
 
 		static const char* directives[] = {".text",  ".data",  ".word",   ".byte",
 		                                   ".ascii", ".asciz", ".space",  ".align",

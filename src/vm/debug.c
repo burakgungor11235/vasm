@@ -48,6 +48,7 @@ debug_init(debug_config_t* config)
     register_tag(config, "asm", "ASM", "Assembler diagnostics", 0);
     register_tag(config, "label", "LABEL", "Label resolution debug", 0);
     register_tag(config, "pool", "POOL", "Literal pool debug", 0);
+    register_tag(config, "parser", "PARS", "Parser tracing", 0);
 }
 
 void
@@ -175,9 +176,17 @@ debug_instr(debug_config_t* config, vm_state_t* vm, u32 instr, u32 pc)
 	        (operand & OFFSET_SIGN_BIT) ? (int)(operand | SIGN_EXTEND_12) : (int)operand);
 	break;
     case OP_B:
-    case OP_BL:
-	fprintf(config->output, "%-4s 0x%07x\n", op_name, instr & 0xFFFFF);
+    case OP_BL: {
+	static const char* cond_suffixes[16] = {"EQ", "NE", "CS", "CC", "MI", "PL", "VS", "VC",
+	                                        "HI", "LS", "GE", "LT", "GT", "LE", "",   "??"};
+	const char* suffix = cond_suffixes[cond];
+	if (suffix[0] == '\0') {
+	    fprintf(config->output, "%-4s 0x%07x\n", op_name, instr & 0xFFFFF);
+	} else {
+	    fprintf(config->output, "B%-3s 0x%07x\n", suffix, instr & 0xFFFFF);
+	}
 	break;
+    }
     case OP_BX:
 	fprintf(config->output, "%-4s r%u\n", op_name, instr & REG_MASK);
 	break;
