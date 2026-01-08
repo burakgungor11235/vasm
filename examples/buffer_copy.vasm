@@ -1,0 +1,36 @@
+; buffer_copy.vasm - Demonstrates memory access with LDR
+; Copies a byte from one location to another using LDR/STR
+
+        .data
+source: .byte 'H', 'e', 'l', 'l', 'o', '!'
+dest:   .skip 6
+
+        .text
+        ; Copy 6 bytes from source to dest
+        ; r0 = source address
+        ; r1 = dest address
+        ; r2 = byte value
+        ; r3 = counter
+
+        ldr r0, =source
+        ldr r1, =dest
+        mov r3, #6           ; copy 6 bytes
+
+copy_loop:
+        cmp r3, #0
+        beq done
+
+        ldrb r2, [r0]        ; load byte from source
+        strb r2, [r1]        ; store byte to dest
+
+        add r0, r0, #1       ; source++
+        add r1, r1, #1       ; dest++
+        sub r3, r3, #1       ; counter--
+
+        b copy_loop
+
+done:
+        ; Exit with success (source is 'Hello!')
+        mov r0, #72          ; 'H'
+        mov r7, #1
+        swi

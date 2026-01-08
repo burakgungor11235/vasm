@@ -1,0 +1,19 @@
+; multiple_loads.vasm - Load multiple values from data section
+
+        .data
+val1:   .word 100
+val2:   .word 200
+val3:   .byte 42
+
+        .text
+        ; Load val1 (100)
+        ldr r0, =val1
+        ldr r0, [r0]         ; r0 = 100
+
+        ; Exit with val3 (42) to verify all loaded
+        ldr r1, =val3
+        ldrb r1, [r1]        ; r1 = 42
+
+        mov r0, r1           ; exit with 42
+        mov r7, #1
+        swi

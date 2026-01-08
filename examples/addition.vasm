@@ -1,0 +1,7 @@
+; addition.vasm - Simple addition using MOV only
+; Demonstrates: immediate values, MOV, exit codes
+
+        .text
+        mov r0, #42         ; r0 = 42
+        mov r7, #1          ; syscall = EXIT
+        swi                 ; exit with code 42

@@ -1,0 +1,14 @@
+; memory_load.vasm - Demonstrates LDR with labels
+; Loads a value from a data section label
+
+        .data
+value:  .word 12345
+
+        .text
+        ; Load the value at 'value' address
+        ldr r0, =value       ; r0 = address of value
+        ldr r0, [r0]         ; r0 = *value = 12345
+
+        ; Exit with the loaded value
+        mov r7, #1
+        swi

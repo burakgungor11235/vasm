@@ -692,19 +692,16 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		    i++;
 		}
 		u32 operand_immed = 0;
-		u32 operand_reg = 0;
-		int is_immediate = 0;
+		int operand_reg = -1;
 		if (i < token_count) {
 		    if (tokens[i].type == TOKEN_HASH) {
 			i++;
 			if (i < token_count && tokens[i].type == TOKEN_IMMEDIATE) {
 			    operand_immed = parse_immediate(tokens[i].value);
-			    is_immediate = 1;
 			    i++;
 			}
 		    } else if (tokens[i].type == TOKEN_IMMEDIATE) {
 			operand_immed = parse_immediate(tokens[i].value);
-			is_immediate = 1;
 			i++;
 		    } else if (tokens[i].type == TOKEN_IDENTIFIER) {
 			int rm = get_register(tokens[i].value);
@@ -712,7 +709,6 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 			    operand_reg = rm;
 			} else {
 			    operand_immed = parse_immediate(tokens[i].value);
-			    is_immediate = 1;
 			}
 			i++;
 		    }
@@ -720,13 +716,14 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		/*
 		 * Encode: opcode<<OPCODE_SHIFT | cond<<COND_SHIFT | rd<<RD_SHIFT | operand
 		 * MOV/MVN have no rn field - operand is the source
+		 * Bit 11 of operand field indicates immediate (1) or register (0)
 		 */
-		if (is_immediate) {
-		    operand = operand_immed & OFFSET_MASK;
+		if (operand_reg >= 0) {
+		    operand = operand_reg;
 		    instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
-		            (rd << RD_SHIFT) | OPERAND_IMM_FLAG | operand;
+		            (rd << RD_SHIFT) | operand;
 		} else {
-		    operand = operand_reg & OFFSET_MASK;
+		    operand = (1 << 11) | (operand_immed & 0xFFF);
 		    instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
 		            (rd << RD_SHIFT) | operand;
 		}
@@ -750,18 +747,15 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		    i++;
 		    if (i < token_count) {
 			u32 operand_immed = 0;
-			u32 operand_reg = 0;
-			int is_immediate = 0;
+			int operand_reg = -1;
 			if (tokens[i].type == TOKEN_HASH) {
 			    i++;
 			    if (i < token_count && tokens[i].type == TOKEN_IMMEDIATE) {
 				operand_immed = parse_immediate(tokens[i].value);
-				is_immediate = 1;
 				i++;
 			    }
 			} else if (tokens[i].type == TOKEN_IMMEDIATE) {
 			    operand_immed = parse_immediate(tokens[i].value);
-			    is_immediate = 1;
 			    i++;
 			} else if (tokens[i].type == TOKEN_IDENTIFIER) {
 			    int rm = get_register(tokens[i].value);
@@ -769,17 +763,16 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 				operand_reg = rm;
 			    } else {
 				operand_immed = parse_immediate(tokens[i].value);
-				is_immediate = 1;
 			    }
 			    i++;
 			}
-			if (is_immediate) {
-			    operand = operand_immed & OFFSET_MASK;
-			    instr = (opcode << OPCODE_SHIFT) | OPERAND_IMM_FLAG |
+			if (operand_reg >= 0) {
+			    operand = operand_reg;
+			    instr = (opcode << OPCODE_SHIFT) |
 			            (parse_condition(condition) << COND_SHIFT) | (rn << RN_SHIFT) |
 			            (rd << RD_SHIFT) | operand;
 			} else {
-			    operand = operand_reg & OFFSET_MASK;
+			    operand = (1 << 11) | (operand_immed & 0xFFF);
 			    instr = (opcode << OPCODE_SHIFT) |
 			            (parse_condition(condition) << COND_SHIFT) | (rn << RN_SHIFT) |
 			            (rd << RD_SHIFT) | operand;
@@ -971,18 +964,15 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 
 	    if (i < token_count) {
 		u32 operand_immed = 0;
-		u32 operand_reg = 0;
-		int is_immediate = 0;
+		int operand_reg = -1;
 		if (tokens[i].type == TOKEN_HASH) {
 		    i++;
 		    if (i < token_count && tokens[i].type == TOKEN_IMMEDIATE) {
 			operand_immed = parse_immediate(tokens[i].value);
-			is_immediate = 1;
 			i++;
 		    }
 		} else if (tokens[i].type == TOKEN_IMMEDIATE) {
 		    operand_immed = parse_immediate(tokens[i].value);
-		    is_immediate = 1;
 		    i++;
 		} else if (tokens[i].type == TOKEN_IDENTIFIER) {
 		    int rm = get_register(tokens[i].value);
@@ -990,7 +980,6 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 			operand_reg = rm;
 		    } else {
 			operand_immed = parse_immediate(tokens[i].value);
-			is_immediate = 1;
 		    }
 		    i++;
 		} else if (tokens[i].type == TOKEN_LBRACKET) {
@@ -1016,15 +1005,14 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		    continue;
 		}
 		/*
-		 * Encode: set OPERAND_IMM_FLAG for immediate values
+		 * Encode: bit 11 of operand field indicates immediate (1) or register (0)
 		 */
-		if (is_immediate) {
-		    operand = operand_immed & OFFSET_MASK;
-		    instr = (opcode << OPCODE_SHIFT) | OPERAND_IMM_FLAG |
-		            (parse_condition(condition) << COND_SHIFT) | (rn << RN_SHIFT) |
-		            (rd << RD_SHIFT) | operand;
+		if (operand_reg >= 0) {
+		    operand = operand_reg;
+		    instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
+		            (rn << RN_SHIFT) | (rd << RD_SHIFT) | operand;
 		} else {
-		    operand = operand_reg & OFFSET_MASK;
+		    operand = (1 << 11) | (operand_immed & 0xFFF);
 		    instr = (opcode << OPCODE_SHIFT) | (parse_condition(condition) << COND_SHIFT) |
 		            (rn << RN_SHIFT) | (rd << RD_SHIFT) | operand;
 		}

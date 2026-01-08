@@ -1,0 +1,14 @@
+; constant_compute.vasm - Pre-computed values demonstration
+; Shows how to compute values at assembly time using .equ
+
+        .equ RESULT, 42 * 2 + 10    ; Compile-time computation: 94
+        .equ FACTOR, 7 * 8          ; 56
+
+        .data
+msg:    .byte 'P', 'r', 'e', '-', 'c', 'o', 'm', 'p', 'u', 't', 'e', 'd', ':', ' ', 0
+
+        .text
+        ; Exit with pre-computed result (94)
+        mov r0, #RESULT
+        mov r7, #1
+        swi

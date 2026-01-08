@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include "../../include/vm.h"
 #include "../../include/debug.h"
+#include "../../include/magic_addrs.h"
 
 static const char* op_names[256] = {
         [0x00] = "MOV",  [0x01] = "MVN",  [0x02] = "ADD", [0x03] = "ADC", [0x04] = "SUB",
@@ -128,11 +129,11 @@ debug_instr(debug_config_t* config, vm_state_t* vm, u32 instr, u32 pc)
 
     config->instr_count++;
 
-    u8 opcode = (instr >> 24) & 0xFF;
-    u8 cond = (instr >> 20) & 0xF;
-    u8 rd = (instr >> 12) & 0xF;
-    u8 rn = (instr >> 16) & 0xF;
-    u32 operand = instr & 0xFFF;
+    u8 opcode = (instr >> OPCODE_SHIFT) & 0xFF;
+    u8 cond = (instr >> COND_SHIFT) & 0xF;
+    u8 rd = (instr >> RD_SHIFT) & REG_MASK;
+    u8 rn = (instr >> RN_SHIFT) & REG_MASK;
+    u32 operand = instr & OPERAND_MASK;
 
     const char* op_name = op_names[opcode];
     if (!op_name)
@@ -144,51 +145,49 @@ debug_instr(debug_config_t* config, vm_state_t* vm, u32 instr, u32 pc)
     fprintf(config->output, "[INSTR] pc=0x%08x %02x%1x%11s ", pc, opcode, cond, cond_names[cond]);
 
     switch (opcode) {
-    case 0x00:
-    case 0x01:
+    case OP_MOV:
+    case OP_MVN:
 	fprintf(config->output, "%-4s r%u, #0x%03x\n", op_name, rd, operand);
 	break;
-    case 0x02:
-    case 0x03:
-    case 0x04:
-    case 0x05:
-    case 0x06:
-    case 0x07:
-    case 0x08:
-    case 0x09:
-    case 0x0A:
-    case 0x0B:
+    case OP_ADD:
+    case OP_ADC:
+    case OP_SUB:
+    case OP_SBC:
+    case OP_RSB:
+    case OP_RSC:
+    case OP_AND:
+    case OP_EOR:
 	fprintf(config->output, "%-4s r%u, r%u, #0x%03x\n", op_name, rd, rn, operand);
 	break;
-    case 0x10:
-	fprintf(config->output, "%-4s r%u, r%u, r%u\n", op_name, rd, (instr >> 8) & 0xF,
-	        (instr >> 4) & 0xF);
+    case OP_MUL:
+	fprintf(config->output, "%-4s r%u, r%u, r%u\n", op_name, rd, (instr >> 8) & REG_MASK,
+	        (instr >> 4) & REG_MASK);
 	break;
-    case 0x11:
-	fprintf(config->output, "%-4s r%u, r%u, r%u, r%u\n", op_name, rd, (instr >> 8) & 0xF,
-	        (instr >> 4) & 0xF, rn);
+    case OP_MLA:
+	fprintf(config->output, "%-4s r%u, r%u, r%u, r%u\n", op_name, rd, (instr >> 8) & REG_MASK,
+	        (instr >> 4) & REG_MASK, rn);
 	break;
-    case 0x20:
-    case 0x21:
-    case 0x22:
-    case 0x23:
+    case OP_LDR:
+    case OP_LDRB:
+    case OP_STR:
+    case OP_STRB:
 	fprintf(config->output, "%-4s r%u, [r%u, #%d]\n", op_name, rd, rn,
-	        (operand & 0x800) ? (int)(operand | 0xFFFFF000) : (int)operand);
+	        (operand & OFFSET_SIGN_BIT) ? (int)(operand | SIGN_EXTEND_12) : (int)operand);
 	break;
-    case 0x30:
-    case 0x31:
+    case OP_B:
+    case OP_BL:
 	fprintf(config->output, "%-4s 0x%07x\n", op_name, instr & 0xFFFFF);
 	break;
-    case 0x32:
-	fprintf(config->output, "%-4s r%u\n", op_name, instr & 0xF);
+    case OP_BX:
+	fprintf(config->output, "%-4s r%u\n", op_name, instr & REG_MASK);
 	break;
-    case 0x40:
+    case OP_HALT:
 	fprintf(config->output, "%-4s\n", op_name);
 	break;
-    case 0x41:
+    case OP_SWI:
 	fprintf(config->output, "%-4s\n", op_name);
 	break;
-    case 0x42:
+    case OP_NOP:
 	fprintf(config->output, "%-4s\n", op_name);
 	break;
     default:

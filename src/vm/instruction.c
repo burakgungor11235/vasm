@@ -3,14 +3,15 @@
 #include <unistd.h>
 #include "../include/vm.h"
 #include "../include/debug.h"
+#include "../include/magic_addrs.h"
 
 static u32
 decode_operand2(vm_state_t* vm, u32 instr)
 {
-    u8 is_immediate = (instr >> 19) & 1;
-    u32 operand = instr & 0xFFF;
-    u8 rotate = (operand >> 8) & 0xF;
-    u8 imm8 = operand & 0xFF;
+    u32 operand = instr & OPERAND_MASK;
+    u8 is_immediate = (operand >> 11) & 1;
+    u8 rotate = (operand >> IMM_ROTATE_SHIFT) & 0x7;
+    u8 imm8 = operand & IMM_VALUE_MASK;
     u32 value = imm8;
     if (rotate > 0) {
 	value = (imm8 >> (rotate * 2)) | (imm8 << (32 - rotate * 2));
@@ -18,9 +19,9 @@ decode_operand2(vm_state_t* vm, u32 instr)
     if (is_immediate) {
 	return value;
     } else {
-	u8 rm = instr & 0xF;
-	u8 shift_type = (instr >> 5) & 0x3;
-	u8 shift_imm = (instr >> 7) & 0x1F;
+	u8 rm = instr & REG_MASK;
+	u8 shift_type = (instr >> SHIFT_TYPE_SHIFT) & 0x3;
+	u8 shift_imm = (instr >> SHIFT_IMM_SHIFT) & 0x1F;
 	u32 reg_value = vm_get_reg(vm, rm);
 	switch (shift_type) {
 	case 0:
@@ -28,7 +29,7 @@ decode_operand2(vm_state_t* vm, u32 instr)
 	case 1:
 	    return reg_value >> shift_imm;
 	case 2:
-	    return (reg_value >> shift_imm) | ((reg_value & 0x80000000) >> (32 - shift_imm));
+	    return (reg_value >> shift_imm) | ((reg_value & VALUE_SIGN_BIT) >> (32 - shift_imm));
 	case 3:
 	    return (reg_value >> shift_imm) | (reg_value << (32 - shift_imm));
 	default:
@@ -230,11 +231,11 @@ exec_mla(vm_state_t* vm, u32 instr)
 void
 exec_ldr(vm_state_t* vm, u32 instr)
 {
-    u8 rt = (instr >> RD_SHIFT) & 0xF;
-    u8 rn = (instr >> RN_SHIFT) & 0xF;
-    u32 offset = instr & OFFSET_MASK;
+    u8 rt = (instr >> RD_SHIFT) & REG_MASK;
+    u8 rn = (instr >> RN_SHIFT) & REG_MASK;
+    u32 offset = instr & OPERAND_MASK;
     if (offset & OFFSET_SIGN_BIT) {
-	offset |= 0xFFFFF000;
+	offset |= SIGN_EXTEND_12;
     }
     u32 addr = vm_get_reg(vm, rn) + offset;
     u32 value = vm_mem_read32(vm, addr);
@@ -244,11 +245,11 @@ exec_ldr(vm_state_t* vm, u32 instr)
 void
 exec_ldrb(vm_state_t* vm, u32 instr)
 {
-    u8 rt = (instr >> RD_SHIFT) & 0xF;
-    u8 rn = (instr >> RN_SHIFT) & 0xF;
-    u32 offset = instr & OFFSET_MASK;
+    u8 rt = (instr >> RD_SHIFT) & REG_MASK;
+    u8 rn = (instr >> RN_SHIFT) & REG_MASK;
+    u32 offset = instr & OPERAND_MASK;
     if (offset & OFFSET_SIGN_BIT) {
-	offset |= 0xFFFFF000;
+	offset |= SIGN_EXTEND_12;
     }
     u32 addr = vm_get_reg(vm, rn) + offset;
     u8 value = vm_mem_read8(vm, addr);
@@ -258,11 +259,11 @@ exec_ldrb(vm_state_t* vm, u32 instr)
 void
 exec_str(vm_state_t* vm, u32 instr)
 {
-    u8 rt = (instr >> RD_SHIFT) & 0xF;
-    u8 rn = (instr >> RN_SHIFT) & 0xF;
-    u32 offset = instr & OFFSET_MASK;
+    u8 rt = (instr >> RD_SHIFT) & REG_MASK;
+    u8 rn = (instr >> RN_SHIFT) & REG_MASK;
+    u32 offset = instr & OPERAND_MASK;
     if (offset & OFFSET_SIGN_BIT) {
-	offset |= 0xFFFFF000;
+	offset |= SIGN_EXTEND_12;
     }
     u32 addr = vm_get_reg(vm, rn) + offset;
     u32 value = vm_get_reg(vm, rt);
@@ -272,23 +273,23 @@ exec_str(vm_state_t* vm, u32 instr)
 void
 exec_strb(vm_state_t* vm, u32 instr)
 {
-    u8 rt = (instr >> RD_SHIFT) & 0xF;
-    u8 rn = (instr >> RN_SHIFT) & 0xF;
-    u32 offset = instr & OFFSET_MASK;
-    if (offset & 0x800) {
-	offset |= 0xFFFFF000;
+    u8 rt = (instr >> RD_SHIFT) & REG_MASK;
+    u8 rn = (instr >> RN_SHIFT) & REG_MASK;
+    u32 offset = instr & OPERAND_MASK;
+    if (offset & OFFSET_SIGN_BIT) {
+	offset |= SIGN_EXTEND_12;
     }
     u32 addr = vm_get_reg(vm, rn) + offset;
-    u8 value = vm_get_reg(vm, rt) & 0xFF;
+    u8 value = vm_get_reg(vm, rt) & BYTE_MASK;
     vm_mem_write8(vm, addr, value);
 }
 
 void
 exec_b(vm_state_t* vm, u32 instr)
 {
-    u32 offset = instr & 0xFFFFFF;
-    if (offset & 0x800000) {
-	offset |= 0xFF000000;
+    u32 offset = instr & BRANCH_OFFSET_MASK;
+    if (offset & BRANCH_SIGN_BIT) {
+	offset |= SIGN_EXTEND_24;
     }
     vm->regs.pc = (vm->regs.pc - 4) + 8 + (offset << 2);
 }
@@ -297,9 +298,9 @@ void
 exec_bl(vm_state_t* vm, u32 instr)
 {
     vm->regs.lr = vm->regs.pc;
-    u32 offset = instr & 0xFFFFFF;
-    if (offset & 0x800000) {
-	offset |= 0xFF000000;
+    u32 offset = instr & BRANCH_OFFSET_MASK;
+    if (offset & BRANCH_SIGN_BIT) {
+	offset |= SIGN_EXTEND_24;
     }
     vm->regs.pc = (vm->regs.pc - 4) + 8 + (offset << 2);
 }
@@ -307,7 +308,7 @@ exec_bl(vm_state_t* vm, u32 instr)
 void
 exec_bx(vm_state_t* vm, u32 instr)
 {
-    u8 rn = instr & 0xF;
+    u8 rn = instr & REG_MASK;
     vm->regs.pc = vm_get_reg(vm, rn);
 }
 
@@ -338,7 +339,7 @@ syscall_handler(vm_state_t* vm)
 
     switch (syscall) {
     case SYSCALL_EXIT:
-	vm->exit_code = r0 & 0xFF;
+	vm->exit_code = r0 & BYTE_MASK;
 	vm->running = 0;
 	break;
 
