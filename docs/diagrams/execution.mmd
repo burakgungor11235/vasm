@@ -1,0 +1,130 @@
+```mermaid
+flowchart TB
+    subgraph "varm 执行流程"
+        direction LR
+        LOAD["加载 .varm 文件\nvarm_load()"]
+        DECODE["指令译码\ndecode_instruction()"]
+        EXEC["执行指令\nexecute_instruction()"]
+        FETCH["取下一条指令"]
+        HALT["停机"]
+    end
+
+    LOAD --> DECODE
+    DECODE --> EXEC
+    EXEC -->|"pc += 4"| FETCH
+    FETCH --> DECODE
+    EXEC -->|"EXIT 指令"| HALT
+```
+
+```mermaid
+flowchart LR
+    subgraph "指令译码流程"
+        direction TB
+        BITS["32位指令字"]
+        EXTRACT["位域提取"]
+        OPCODE["Opcode (3位)"]
+        COND["Cond (4位)"]
+        RN["Rn (4位)"]
+        RD["Rd (4位)"]
+        OPERAND["Operand2 (12位)"]
+        LUT["查表\nopcode_lookup[]"]
+        HANDLER["指令处理器\nswitch/case"]
+    end
+
+    BITS --> EXTRACT
+    EXTRACT --> OPCODE
+    EXTRACT --> COND
+    EXTRACT --> RN
+    EXTRACT --> RD
+    EXTRACT --> OPERAND
+    OPCODE --> LUT
+    LUT --> HANDLER
+```
+
+```mermaid
+flowchart LR
+    subgraph "数据通路"
+        direction TB
+        REG["寄存器堆\n16 x 32位"]
+        ALU["ALU\n32位算术逻辑单元"]
+        MEM["内存\n64KB"]
+        BUS["系统总线"]
+    end
+
+    REG <-->|"读/写"| BUS
+    ALU <-->|"操作数"| BUS
+    MEM <-->|"读取/存储"| BUS
+```
+
+```mermaid
+flowchart LR
+    subgraph "指令周期"
+        direction TB
+        IF["取指 (IF)\n从内存读取指令"]
+        ID["译码 (ID)\n解析操作码和操作数"]
+        EX["执行 (EX)\nALU运算/内存访问"]
+        MEM["访存 (MEM)\n读/写数据"]
+        WB["写回 (WB)\n结果写入寄存器"]
+    end
+
+    IF --> ID --> EX --> MEM --> WB --> IF
+```
+
+```mermaid
+flowchart LR
+    subgraph "寄存器角色"
+        direction TB
+        SP["R13/SP\n栈指针"]
+        LR["R14/LR\n链接寄存器"]
+        PC["R15/PC\n程序计数器"]
+        FP["R11/FP\n帧指针"]
+        IP["R12/IP\n过程调用内部"]
+        R0["R0-R10\n通用寄存器"]
+        R0A["R0\n返回值/参数1"]
+        R1["R1\n参数2"]
+        R2["R2\n参数3"]
+        R3["R3\n参数4"]
+    end
+```
+
+```mermaid
+flowchart TB
+    subgraph "重定位处理"
+        direction TB
+        PASS1["Pass 1: 扫描"]
+        PASS2["Pass 2: 编码"]
+        FORWARD["前向引用\n(Forward Reference)"]
+        RELOC["重定位表\n(Relocation Table)"]
+
+        PASS1 -->|"遇到未知标签"| FORWARD
+        FORWARD -->|"记录地址"| PASS1
+        PASS1 -->|"输出RELOC条目"| PASS2
+        PASS2 -->|"解析标签"| RELOC
+```
+
+```mermaid
+flowchart LR
+    subgraph "立即数编码"
+        direction TB
+        VAL["原始值"]
+        ROR["循环右移\nRotate Right"]
+        ENCODE["12位编码\n(8位值 + 4位移位)"]
+        CHECK["有效性验证\n(是否能编码?)"]
+
+        VAL --> ROR --> ENCODE --> CHECK
+```
+
+```mermaid
+flowchart TB
+    subgraph "异常处理流程"
+        direction TB
+        INT["中断/异常发生"]
+        SAVE["保存上下文\n(寄存器/PC/CPSR)"]
+        MODE["切换到 SVC 模式"]
+        VECTOR["跳转到异常向量"]
+        HANDLER["异常处理程序"]
+        RESTORE["恢复上下文"]
+        RETURN["返回继续执行"]
+
+        INT --> SAVE --> MODE --> VECTOR --> HANDLER --> RESTORE --> RETURN
+```

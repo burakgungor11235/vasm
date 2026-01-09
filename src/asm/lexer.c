@@ -1,3 +1,57 @@
+/**
+ * @file lexer.c
+ * @brief Lexer for the varm assembler - converts source code to tokens.
+ *
+ * @details This module implements the lexical analysis phase of the assembler.
+ * It reads source code character-by-character and produces a stream of tokens
+ * for the parser. The lexer handles:
+ *
+ * - Whitespace and comment stripping
+ * - Number parsing (decimal, hexadecimal, binary, character literals)
+ * - Identifier and label recognition
+ * - Keyword and instruction classification
+ * - Punctuation and operator tokenization
+ *
+ * @author varm Development Team
+ * @version 0.1.0
+ *
+ * @warning This API is not stable. Function signatures and behavior may change.
+ * @note Maximum token count is 4096.
+ *
+ * @see parser.c Parsing
+ * @see assembler.h Public API
+ *
+ * TOKEN TYPES:
+ * ============
+ *   TOKEN_NEWLINE     - Line terminator
+ *   TOKEN_EOF         - End of file marker
+ *   TOKEN_COMMA       - Comma operator
+ *   TOKEN_HASH        - Immediate prefix (#)
+ *   TOKEN_EQUAL       - Assignment (=)
+ *   TOKEN_LBRACKET    - Left bracket ([)
+ *   TOKEN_RBRACKET    - Right bracket (])
+ *   TOKEN_EXCLAM      - Exclamation mark (!)
+ *   TOKEN_STRING      - Quoted string literal
+ *   TOKEN_IMMEDIATE   - Numeric constant
+ *   TOKEN_IDENTIFIER  - User-defined identifier
+ *   TOKEN_LABEL       - Label definition (identifier with trailing :)
+ *   TOKEN_INSTRUCTION - Assembly instruction mnemonic
+ *   TOKEN_DIRECTIVE   - Assembler directive (.text, .data, etc.)
+ *
+ * LEXING EXAMPLE:
+ * ===============
+ * Input: "loop: mov r0, #42"
+ *
+ * Tokens:
+ *   TOKEN_LABEL,    value="loop"
+ *   TOKEN_INSTRUCTION, value="mov"
+ *   TOKEN_IDENTIFIER,  value="r0"
+ *   TOKEN_COMMA
+ *   TOKEN_HASH
+ *   TOKEN_IMMEDIATE, value="42"
+ *   TOKEN_NEWLINE
+ *   TOKEN_EOF
+ */
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,30 +60,79 @@
 
 #include "../../include/assembler.h"
 
+/**
+ * @brief Checks if a character is whitespace.
+ *
+ * @details Whitespace characters: space (' '), tab ('\t'), carriage return ('\r').
+ * Newline ('\n') is handled separately as a TOKEN_NEWLINE.
+ *
+ * @param c The character to check
+ * @return int Non-zero if whitespace, zero otherwise
+ */
 static int
 is_whitespace(char c)
 {
     return c == ' ' || c == '\t' || c == '\r';
 }
 
+/**
+ * @brief Checks if a character can start an identifier.
+ *
+ * @details Valid identifier starts: letters (a-z, A-Z), underscore (_), dot (.).
+ * The dot allows for directive names like .text, .data, etc.
+ *
+ * @param c The character to check
+ * @return int Non-zero if valid start character, zero otherwise
+ */
 static int
 is_identifier_start(char c)
 {
     return isalpha(c) || c == '_' || c == '.';
 }
 
+/**
+ * @brief Checks if a character is valid in an identifier.
+ *
+ * @details Valid identifier characters: alphanumeric (a-z, A-Z, 0-9),
+ * underscore (_), and dot (.).
+ *
+ * @param c The character to check
+ * @return int Non-zero if valid identifier character, zero otherwise
+ */
 static int
 is_identifier_char(char c)
 {
     return isalnum(c) || c == '_' || c == '.';
 }
 
+/**
+ * @brief Checks if a character starts a number.
+ *
+ * @details Numbers start with decimal digits (0-9).
+ * The base (decimal, hex, binary) is determined by prefix.
+ *
+ * @param c The character to check
+ * @return int Non-zero if digit, zero otherwise
+ */
 static int
 is_number_start(char c)
 {
     return isdigit(c);
 }
 
+/**
+ * @brief Creates a heap-allocated copy of a string with specified length.
+ *
+ * @details Allocates a new buffer of size (len + 1), copies len bytes from
+ * the source, and appends a null terminator. Used for token values.
+ *
+ * @param str The source string to copy
+ * @param len The number of bytes to copy
+ * @return char* Newly allocated string, or NULL on allocation failure
+ *
+ * @note Caller is responsible for freeing the returned pointer
+ * @warning Returns NULL if malloc fails
+ */
 static char*
 strdup_len(const char* str, int len)
 {
@@ -41,6 +144,35 @@ strdup_len(const char* str, int len)
     return result;
 }
 
+/**
+ * @brief Main lexing function - converts source code to tokens.
+ *
+ * @details Performs lexical analysis on assembly source code, producing a
+ * token stream for the parser. The lexer implements a simple state machine
+ * that recognizes:
+ *
+ * - Comments: From ';' to end of line
+ * - Strings: Double-quoted with escape handling
+ * - Character literals: Single-quoted single characters
+ * - Numbers: Decimal, hex (0x), binary (0b), and negative
+ * - Identifiers: Letters, digits, underscore, dot
+ * - Labels: Identifier followed by ':'
+ * - Keywords: Instruction mnemonics and assembler directives
+ * - Punctuation: Comma, brackets, hash, equals, etc.
+ *
+ * @param input The null-terminated source code string
+ * @param tokens Pre-allocated array to store tokens
+ * @param max_tokens Maximum number of tokens to produce
+ * @return int The number of tokens produced, including TOKEN_EOF
+ *
+ * @note Time complexity: O(n) where n is the input length
+ * @note Space complexity: O(k) where k is the number of tokens
+ * @warning Truncates output if max_tokens is exceeded
+ * @warning Token values are heap-allocated and must be freed via free_tokens()
+ *
+ * @see free_tokens() Memory cleanup
+ * @see parser.c Token consumption
+ */
 int
 tokenize(const char* input, token_t* tokens, int max_tokens)
 {
@@ -252,6 +384,19 @@ tokenize(const char* input, token_t* tokens, int max_tokens)
     return token_count;
 }
 
+/**
+ * @brief Frees memory allocated for token values.
+ *
+ * @details Iterates through the token array and frees any heap-allocated
+ * value strings. Token structures themselves are not freed as they are
+ * typically stack-allocated.
+ *
+ * @param tokens The token array to free
+ * @param count The number of tokens in the array
+ *
+ * @note This function is safe to call with NULL values (no-op)
+ * @warning After calling, token value pointers are invalid
+ */
 void
 free_tokens(token_t* tokens, int count)
 {

@@ -1,7 +1,25 @@
-/*
- * varm Assembler - Parser
+/**
+ * @file parser.c
+ * @brief Main parser for the varm assembler - converts tokens to machine code instructions.
  *
- * Converts tokens to machine code instructions.
+ * @details This module implements the core parsing logic for the varm assembler. It takes
+ * tokenized input from the lexer and produces encoded machine code instructions. The parser
+ * handles instruction encoding, label resolution, literal pool management, and relocation.
+ *
+ * The parser implements a multi-pass approach:
+ * - Pass 1: Token classification and instruction dispatch
+ * - Pass 2: Label resolution and relocation fixups
+ * - Pass 3: Literal pool emission
+ *
+ * @author varm Development Team
+ * @version 0.1.0
+ *
+ * @warning This API is not stable. Function signatures and behavior may change.
+ * @note Instruction encoding is little-endian. Maximum instruction count is 4096.
+ *
+ * @see lexer.c Tokenization
+ * @see symbol_table.c Label management
+ * @see assembler.h Public API
  *
  * INSTRUCTION FORMAT (32 bits, little-endian):
  * ============================================
@@ -10,12 +28,6 @@
  *  │ Opcode  │  Cond   │   Rn    │   Rd    │   Operand   │
  *  │  8 bit  │  4 bit  │  4 bit  │  4 bit  │   12 bit    │
  *  └─────────┴─────────┴─────────┴─────────┴─────────────┘
- *
- * MEMORY LAYOUT (little-endian at address A):
- *   A+0:  operand[7:0]
- *   A+1:  operand[11:8] | rd[3:0]
- *   A+2:  rd[7:4] | rn[3:0]
- *   A+3:  cond[3:0] | opcode[7:0]
  *
  * PARSING FLOW:
  * =============
@@ -80,6 +92,20 @@ int asm_debug = 0;
 	}                                                                                          \
     } while (0)
 
+/**
+ * @brief Converts a register name string to its numeric index.
+ *
+ * @details Parses register names in the following formats:
+ *   - Single-digit: r0-r9
+ *   - Double-digit: r10-r15
+ *   - Special names: sp (r13), lr (r14), pc (r15)
+ *
+ * @param name The register name string to parse
+ * @return int The register index (0-15) on success, -1 on failure
+ *
+ * @note Case-insensitive comparison for special register names
+ * @warning Invalid register names silently return -1
+ */
 static int
 get_register(const char* name)
 {
@@ -98,6 +124,23 @@ get_register(const char* name)
     return -1;
 }
 
+/**
+ * @brief Parses an immediate value from a string literal.
+ *
+ * @details Supports multiple numeric formats:
+ *   - Decimal: "42"
+ *   - Hexadecimal: "0x2A"
+ *   - Binary: "0b101010"
+ *
+ * After parsing, the value is rotated right by 2 bits until it fits in 8 bits.
+ * The rotation count is encoded in bits 8-15 of the return value.
+ *
+ * @param value The string representation of the immediate value
+ * @return u32 The encoded immediate value (8-bit value in bits 0-7, rotation in bits 8-15)
+ *
+ * @note Complexity: O(n) where n is the number of rotation steps (max 16)
+ * @warning Large values that cannot be rotated into 8 bits are truncated
+ */
 static u32
 parse_immediate(const char* value)
 {
@@ -120,6 +163,19 @@ parse_immediate(const char* value)
     return (rotate << 8) | (result & 0xFF);
 }
 
+/**
+ * @brief Emits an encoded instruction to the text section.
+ *
+ * @details Adds the instruction to the text buffer and increments the current address
+ * by 4 bytes. The instruction is only stored if we are in the .text section and
+ * there is space remaining in the instruction buffer.
+ *
+ * @param ctx Pointer to the parser context
+ * @param instr The 32-bit encoded instruction to emit
+ *
+ * @note Complexity: O(1)
+ * @warning Silently drops instruction if text section is full or we are in .data section
+ */
 static void
 emit_instr(parser_ctx_t* ctx, u32 instr)
 {
@@ -129,12 +185,40 @@ emit_instr(parser_ctx_t* ctx, u32 instr)
     }
 }
 
+/**
+ * @brief Adds a label to the symbol table with the current address.
+ *
+ * @details Inserts a label definition into the parser's symbol table. Labels
+ * are used to mark positions in the code for branch targets and data references.
+ *
+ * @param ctx Pointer to the parser context
+ * @param name The label name to insert
+ * @param addr The address to associate with the label
+ * @return int 0 on success, -1 on failure (table full or duplicate)
+ *
+ * @see symbol_insert() Underlying symbol table insertion
+ * @note Complexity: O(1) average case hash table lookup
+ */
 static int
 add_label(parser_ctx_t* ctx, const char* name, u32 addr)
 {
     return symbol_insert(&ctx->labels, name, addr);
 }
 
+/**
+ * @brief Resolves a label name to its associated address.
+ *
+ * @details Performs a symbol table lookup to find the address of a label.
+ * Used for branch targets and data references.
+ *
+ * @param ctx Pointer to the parser context
+ * @param name The label name to look up
+ * @return int The resolved address on success, -1 if label not found
+ *
+ * @see symbol_lookup() Underlying symbol table lookup
+ * @note Complexity: O(1) average case hash table lookup
+ * @warning Returns -1 for undefined labels without error
+ */
 static int
 lookup_label(parser_ctx_t* ctx, const char* name)
 {
@@ -145,6 +229,20 @@ lookup_label(parser_ctx_t* ctx, const char* name)
     return -1;
 }
 
+/**
+ * @brief Records a relocation entry for a label reference.
+ *
+ * @details Adds a relocation record for forward references or external labels.
+ * Relocations are resolved after the first pass when all labels are defined.
+ *
+ * @param ctx Pointer to the parser context
+ * @param name The label name to be relocated
+ * @param addr The address in the instruction stream requiring fixup
+ * @param is_branch Set to 1 for branch relocations, 0 for data relocations
+ *
+ * @note Complexity: O(1)
+ * @warning Silently drops relocation if relocation table is full
+ */
 static void
 add_reloc(parser_ctx_t* ctx, const char* name, u32 addr, int is_branch)
 {
@@ -156,6 +254,19 @@ add_reloc(parser_ctx_t* ctx, const char* name, u32 addr, int is_branch)
     }
 }
 
+/**
+ * @brief Adds a value to the literal pool or returns existing entry index.
+ *
+ * @details The literal pool stores 32-bit constants that can be loaded via
+ * PC-relative LDR instructions. Duplicate values share a single pool entry.
+ *
+ * @param ctx Pointer to the parser context
+ * @param value The 32-bit value to store in the pool
+ * @return u32 The pool entry index, or 0 if pool is full
+ *
+ * @note Complexity: O(n) where n is the current literal pool count
+ * @warning Returns 0 if pool exceeds maximum size (MAX_LITERAL_POOL_ENTRIES)
+ */
 static u32
 add_literal_pool_entry(parser_ctx_t* ctx, u32 value)
 {
@@ -175,6 +286,18 @@ add_literal_pool_entry(parser_ctx_t* ctx, u32 value)
     return 0;
 }
 
+/**
+ * @brief Emits the literal pool and fixes up LDR instructions.
+ *
+ * @details Writes all literal pool entries to the end of the text section,
+ * then updates the LDR instructions that reference the pool with the correct
+ * byte offsets. This function is called after the first parsing pass completes.
+ *
+ * @param ctx Pointer to the parser context containing pool entries and references
+ *
+ * @note Complexity: O(n + m) where n is pool count and m is reference count
+ * @warning Assumes all pool references are already recorded
+ */
 static void
 emit_literal_pool(parser_ctx_t* ctx)
 {
@@ -210,6 +333,26 @@ emit_literal_pool(parser_ctx_t* ctx)
     }
 }
 
+/**
+ * @brief Parses assembler directives.
+ *
+ * @details Handles the following directives:
+ *   - .text: Switch to code section, reset address to 0
+ *   - .data: Switch to data section, set address to 0x10000
+ *   - .word: Emit 32-bit values (little-endian)
+ *   - .byte: Emit 8-bit values
+ *   - .equ/.set: Define label-value associations
+ *
+ * @param ctx Pointer to the parser context
+ * @param dir The directive name string
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @return int 0 on success, -1 on failure
+ *
+ * @note Complexity: O(k) where k is the number of values in directive
+ * @warning Silently ignores malformed directives
+ */
 static int
 parse_directive(parser_ctx_t* ctx, const char* dir, token_t* tokens, int* i, int token_count)
 {
@@ -278,6 +421,24 @@ parse_directive(parser_ctx_t* ctx, const char* dir, token_t* tokens, int* i, int
     return 0;
 }
 
+/**
+ * @brief Parses an operand (immediate or register).
+ *
+ * @details Extracts either an immediate value or register from the token stream.
+ * Accepts operands in the following forms:
+ *   - #immediate or immediate (parsed via parse_immediate)
+ *   - register name (parsed via get_register)
+ *
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @param imm_value Pointer to store parsed immediate value
+ * @param reg_value Pointer to store parsed register index
+ * @return int 1 if immediate parsed, 0 if register parsed, -1 on failure
+ *
+ * @note Complexity: O(1) amortized
+ * @warning Returns -1 for malformed operands without error
+ */
 static int
 parse_operand(token_t* tokens, int* i, int token_count, u32* imm_value, int* reg_value)
 {
@@ -310,6 +471,26 @@ parse_operand(token_t* tokens, int* i, int token_count, u32* imm_value, int* reg
     return -1;
 }
 
+/**
+ * @brief Parses MOV and MVN (move and move not) instructions.
+ *
+ * @details Encodes move instructions with the following format:
+ *   MOV/MVN Rd, #imm  or  MOV/MVN Rd, Rn
+ *
+ * The operand field indicates immediate mode with bit 11 set.
+ *
+ * @param ctx Pointer to the parser context
+ * @param opcode The opcode value (OP_MOV or OP_MVN)
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @param condition The condition code suffix (NULL for AL)
+ * @return int 0 on success, -1 on parse failure
+ *
+ * @note Complexity: O(1)
+ * @retval 0 Success
+ * @retval -1 Parse failure (invalid syntax)
+ */
 static int
 parse_move(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_count,
            const char* condition)
@@ -345,6 +526,27 @@ parse_move(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_cou
     return 0;
 }
 
+/**
+ * @brief Parses B and BL (branch and branch with link) instructions.
+ *
+ * @details Encodes branch instructions with 24-bit signed relative offset.
+ * Forward references are recorded as relocations for later resolution.
+ *
+ * Branch offset calculation: (target_addr - current_addr - 4) / 4
+ *
+ * @param ctx Pointer to the parser context
+ * @param opcode The opcode value (OP_B or OP_BL)
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @param condition The condition code suffix (NULL for default)
+ * @return int 0 on success, -1 on parse failure
+ *
+ * @note Complexity: O(1)
+ * @retval 0 Success
+ * @retval -1 Parse failure (invalid syntax)
+ * @warning Labels are resolved in second pass
+ */
 static int
 parse_branch(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_count,
              const char* condition)
@@ -372,6 +574,26 @@ parse_branch(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_c
     return 0;
 }
 
+/**
+ * @brief Parses system instructions (HALT, NOP, SWI).
+ *
+ * @details Encodes system-level instructions:
+ *   - HALT: Stop execution, optional status code
+ *   - NOP: No operation
+ *   - SWI: Software interrupt with optional syscall number
+ *
+ * @param ctx Pointer to the parser context
+ * @param opcode The opcode value (OP_HALT, OP_NOP, or OP_SWI)
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @param condition The condition code suffix (NULL for default)
+ * @return int 0 on success, -1 on parse failure
+ *
+ * @note Complexity: O(1)
+ * @retval 0 Success
+ * @retval -1 Parse failure
+ */
 static int
 parse_system(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_count,
              const char* condition)
@@ -403,6 +625,27 @@ parse_system(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_c
     return 0;
 }
 
+/**
+ * @brief Parses ALU instructions (ADD, SUB, AND, ORR, CMP, CMN, TST, TEQ).
+ *
+ * @details Encodes arithmetic and logical operations with the format:
+ *   OP Rd, Rn, #imm  or  OP Rd, Rn, Rm
+ *
+ * Comparison instructions (CMP, CMN, TST, TEQ) ignore the destination register
+ * and set condition flags instead.
+ *
+ * @param ctx Pointer to the parser context
+ * @param opcode The opcode value for the ALU operation
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @param condition The condition code suffix (NULL for default)
+ * @return int 0 on success, -1 on parse failure
+ *
+ * @note Complexity: O(1)
+ * @retval 0 Success
+ * @retval -1 Parse failure (invalid syntax)
+ */
 static int
 parse_alu(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_count,
           const char* condition)
@@ -470,6 +713,25 @@ parse_alu(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_coun
     return 0;
 }
 
+/**
+ * @brief Parses multiplication instructions (MUL, MLA).
+ *
+ * @details Encodes multiplication operations:
+ *   - MUL Rd, Rm, Rs: Rd = Rm * Rs
+ *   - MLA Rd, Rm, Rs, Rn: Rd = Rm * Rs + Rn
+ *
+ * @param ctx Pointer to the parser context
+ * @param opcode The opcode value (OP_MUL or OP_MLA)
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @param condition The condition code suffix (NULL for default)
+ * @return int 0 on success, -1 on parse failure
+ *
+ * @note Complexity: O(1)
+ * @retval 0 Success
+ * @retval -1 Parse failure (invalid syntax)
+ */
 static int
 parse_mult(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_count,
            const char* condition)
@@ -521,6 +783,26 @@ parse_mult(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_cou
     return 0;
 }
 
+/**
+ * @brief Parses load/store instructions (LDR, LDRB, STR, STRB).
+ *
+ * @details Encodes memory access with base-plus-offset addressing:
+ *   LDR/STR Rt, [Rn, #offset]
+ *
+ * Supports byte (B suffix) and word (default) transfers.
+ *
+ * @param ctx Pointer to the parser context
+ * @param opcode The opcode value (OP_LDR, OP_LDRB, OP_STR, or OP_STRB)
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @param condition The condition code suffix (NULL for default)
+ * @return int 0 on success, -1 on parse failure
+ *
+ * @note Complexity: O(1)
+ * @retval 0 Success
+ * @retval -1 Parse failure (invalid syntax)
+ */
 static int
 parse_load_store(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_count,
                  const char* condition)
@@ -570,6 +852,29 @@ parse_load_store(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int tok
     return 0;
 }
 
+/**
+ * @brief Parses the pseudo-instruction ldr rd, =label.
+ *
+ * @details Implements the ldr pseudo-instruction for loading label addresses.
+ * Generates a LDR instruction with PC-relative addressing plus a literal pool
+ * entry containing the label's address.
+ *
+ * Example: ldr r0, =my_label
+ *   - Emits: LDR r0, [pc, #offset] where offset points to literal pool
+ *   - Pool entry contains: address of my_label
+ *
+ * @param ctx Pointer to the parser context
+ * @param tokens The token array
+ * @param i Pointer to current token index (modified by function)
+ * @param token_count Total number of tokens
+ * @param condition The condition code suffix (NULL for default)
+ * @return int 0 on success, -1 on parse failure
+ *
+ * @note Complexity: O(1) for parsing, O(n) for literal pool emission
+ * @retval 0 Success
+ * @retval -1 Parse failure (invalid syntax)
+ * @see emit_literal_pool() Pool emission after parsing
+ */
 static int
 parse_pseudo_ldr(parser_ctx_t* ctx, token_t* tokens, int* i, int token_count, const char* condition)
 {
@@ -619,29 +924,41 @@ parse_pseudo_ldr(parser_ctx_t* ctx, token_t* tokens, int* i, int token_count, co
     return 0;
 }
 
-/*
- * parse()
- * =======
- * Main parsing entry point.
+/**
+ * @brief Main parsing entry point - converts tokens to machine code.
  *
- * PARSING ALGORITHM:
- *   1. Initialize parser context (symbol table, empty sections)
- *   2. Iterate through tokens:
- *      - NEWLINE: Skip (whitespace)
- *      - LABEL: Add to symbol table with current address
- *      - DIRECTIVE: Pass to parse_directive()
- *      - INSTRUCTION: Dispatch to appropriate handler:
- *          ├─ B/BL → parse_branch()
- *          ├─ HALT/NOP/SWI → parse_system()
- *          ├─ MOV/MVN → parse_move()
- *          ├─ CMP/CMN/TST/TEQ → parse_alu()
- *          ├─ MUL/MLA → parse_mult()
- *          ├─ LDR (=label) → parse_pseudo_ldr()
- *          ├─ LDR/STR variants → parse_load_store()
- *          └─ Other → parse_alu() (ADD, SUB, etc.)
- *   3. After all tokens: Resolve relocations (fix up addresses)
- *   4. Emit literal pool entries
- *   5. Copy results to program_state_t output
+ * @details This is the primary parsing function that orchestrates the entire
+ * assembly process. It performs a single-pass parsing algorithm that:
+ *
+ * 1. Initializes the parser context (symbol table, empty sections)
+ * 2. Iterates through all tokens:
+ *    - NEWLINE: Skip (whitespace)
+ *    - LABEL: Add to symbol table with current address
+ *    - DIRECTIVE: Pass to parse_directive()
+ *    - INSTRUCTION: Dispatch to appropriate handler:
+ *        ├─ B/BL → parse_branch()
+ *        ├─ HALT/NOP/SWI → parse_system()
+ *        ├─ MOV/MVN → parse_move()
+ *        ├─ CMP/CMN/TST/TEQ → parse_alu()
+ *        ├─ MUL/MLA → parse_mult()
+ *        ├─ LDR (=label) → parse_pseudo_ldr()
+ *        ├─ LDR/STR variants → parse_load_store()
+ *        └─ Other → parse_alu() (ADD, SUB, etc.)
+ * 3. After all tokens: Resolve relocations (fix up addresses)
+ * 4. Emit literal pool entries
+ * 5. Copy results to program_state_t output
+ *
+ * @param tokens The array of tokens from the lexer
+ * @param token_count The number of tokens in the array
+ * @param prog Pointer to the output program_state_t structure
+ * @return int 0 on success, -1 on failure
+ *
+ * @note Time complexity: O(n) where n is the number of tokens
+ * @note Space complexity: O(k) where k is the number of labels and instructions
+ * @warning This function modifies the prog structure
+ *
+ * @see tokenize() Tokenization
+ * @see write_vm_file() Output file generation
  *
  * OUTPUT FORMAT (.varm file):
  *   ┌─────────────────────────────────────┐
@@ -797,6 +1114,33 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
     return 0;
 }
 
+/**
+ * @brief Writes the assembled program to a .varm file.
+ *
+ * @details Creates a binary file with the varm executable format:
+ *   - 32-byte header containing metadata
+ *   - Text section (encoded instructions, little-endian)
+ *   - Data section (initialized data)
+ *
+ * The header structure:
+ *   Offset  Size  Description
+ *   0       4     Magic: "VARM"
+ *   4       4     text_offset (always 32)
+ *   8       4     text_size (in bytes)
+ *   12      4     data_offset (32 + text_size)
+ *   16      4     data_size (in bytes)
+ *   20      4     entry point (always text_offset)
+ *   24      4     Reserved (0)
+ *   28      4     Reserved (0)
+ *
+ * @param prog Pointer to the assembled program_state_t
+ * @param filename The output file path
+ * @return int 0 on success, -1 on failure (file open error)
+ *
+ * @note Complexity: O(n) where n is text_size + data_size
+ * @retval 0 Success
+ * @retval -1 File open failed
+ */
 int
 write_vm_file(program_state_t* prog, const char* filename)
 {
@@ -827,6 +1171,30 @@ write_vm_file(program_state_t* prog, const char* filename)
     return 0;
 }
 
+/**
+ * @brief High-level assembly function - reads source file and produces output.
+ *
+ * @details This is the main entry point for the assembler. It orchestrates
+ * the complete assembly pipeline:
+ *
+ * 1. Read entire input file into memory
+ * 2. Tokenize the source code (via tokenize())
+ * 3. Parse tokens into encoded instructions (via parse())
+ * 4. Write output .varm file (via write_vm_file())
+ *
+ * @param input_file Path to the assembly source file (.s or .asm)
+ * @param output_file Path for the output .varm binary file
+ * @return int 0 on success, -1 on failure (file error or allocation failure)
+ *
+ * @note Time complexity: O(n + m) where n is source size, m is instruction count
+ * @note Allocates temporary buffer for file contents
+ * @retval 0 Success
+ * @retval -1 File open failed or memory allocation failed
+ *
+ * @see tokenize() Lexical analysis
+ * @see parse() Syntax analysis
+ * @see write_vm_file() Output generation
+ */
 int
 assemble(const char* input_file, const char* output_file)
 {

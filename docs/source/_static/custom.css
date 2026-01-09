@@ -1,0 +1,211 @@
+/* Custom CSS for varm Documentation */
+/*
+ * This stylesheet provides custom styling for the varm
+ * documentation built with Sphinx and the Read the Docs theme.
+ */
+
+/*---------------------------------------------------------------------------
+ * Color palette
+ *---------------------------------------------------------------------------
+
+:root {
+    --varm-primary: #1a5f7a;
+    --varm-secondary: #159895;
+    --varm-accent: #57c5b6;
+    --varm-dark: #002b5b;
+    --varm-light: #f8f9fa;
+    --varm-code-bg: #f1f3f5;
+}
+
+/*---------------------------------------------------------------------------
+ * Typography
+ *---------------------------------------------------------------------------
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--varm-dark);
+    font-weight: 600;
+}
+
+code, pre {
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+}
+
+/*---------------------------------------------------------------------------
+ * Header styling
+ *---------------------------------------------------------------------------
+
+.wy-header {
+    background: linear-gradient(135deg, var(--varm-dark) 0%, var(--varm-primary) 100%);
+    color: white;
+}
+
+.wy-nav-side {
+    background-color: var(--varm-light);
+}
+
+/*---------------------------------------------------------------------------
+ * Instruction format diagrams
+ *---------------------------------------------------------------------------
+
+.instruction-format {
+    background-color: var(--varm-code-bg);
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    padding: 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+}
+
+.instruction-format table {
+    margin: 0 auto;
+    border-collapse: collapse;
+}
+
+.instruction-format td,
+.instruction-format th {
+    border: 1px solid #d1d5da;
+    padding: 0.5rem 1rem;
+    text-align: center;
+}
+
+.instruction-format .field-opcode {
+    background-color: #e1f5fe;
+}
+
+.instruction-format .field-cond {
+    background-color: #e8f5e9;
+}
+
+.instruction-format .field-rn {
+    background-color: #fff3e0;
+}
+
+.instruction-format .field-rd {
+    background-color: #fce4ec;
+}
+
+.instruction-format .field-operand {
+    background-color: #f3e5f5;
+}
+
+/*---------------------------------------------------------------------------
+ * Code blocks
+ *---------------------------------------------------------------------------
+
+.highlight {
+    background-color: var(--varm-code-bg);
+    border-radius: 4px;
+}
+
+.highlight-vasm .highlight {
+    border-left: 4px solid var(--varm-secondary);
+}
+
+/*---------------------------------------------------------------------------
+ * Mermaid diagrams
+ *---------------------------------------------------------------------------
+
+.mermaid {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+    background-color: #fafafa;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+/*---------------------------------------------------------------------------
+ * Warning and note boxes
+ *---------------------------------------------------------------------------
+
+.note {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+}
+
+.warning {
+    background-color: #fff3e0;
+    border-left: 4px solid #ff9800;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+}
+
+.tip {
+    background-color: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+}
+
+/*---------------------------------------------------------------------------
+ * Tables
+ *---------------------------------------------------------------------------
+
+table.docutils {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+table.docutils th,
+table.docutils td {
+    border: 1px solid #d1d5da;
+    padding: 0.5rem 1rem;
+}
+
+table.docutils th {
+    background-color: var(--varm-code-bg);
+    font-weight: 600;
+}
+
+/*---------------------------------------------------------------------------
+ * Mathematical formulas
+ *---------------------------------------------------------------------------
+
+.math {
+    font-size: 1.1em;
+}
+
+/*---------------------------------------------------------------------------
+ * Footer
+ *---------------------------------------------------------------------------
+
+.footer {
+    background-color: var(--varm-dark);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    margin-top: 2rem;
+}
+
+/*---------------------------------------------------------------------------
+ * Responsive design
+ *---------------------------------------------------------------------------
+
+@media screen and (max-width: 768px) {
+    .instruction-format {
+        font-size: 0.9rem;
+    }
+}
+
+/*---------------------------------------------------------------------------
+ * Hide navbar navigation links (keep logo, search, theme switcher, GitHub)
+ *---------------------------------------------------------------------------
+
+.bd-header .navbar-nav {
+    display: none !important;
+}
+
+.bd-header .nav-item.nav-link {
+    display: none !important;
+}

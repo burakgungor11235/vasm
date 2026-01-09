@@ -1,0 +1,46 @@
+# varm Documentation Requirements
+#
+# This file specifies the Python dependencies required to build
+# the varm documentation using Sphinx and Breathe.
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# Build:
+#   make html    # HTML documentation
+#   make latex   # LaTeX source
+#   make pdf     # PDF (requires LaTeX installed)
+#
+
+# Sphinx - Documentation generator
+# https://www.sphinx-doc.org/
+sphinx>=7.0
+
+# Breathe - Bridge between Sphinx and Doxygen
+# https://breathe.readthedocs.io/
+breathe>=4.35.0
+
+
+# pydata-sphinx-theme - Jupyter/SciPy theme for Sphinx
+# https://pydata-sphinx-theme.readthedocs.io/
+pydata-sphinx-theme>=0.15.0
+
+# https://sphinxcontrib-mermaid.readthedocs.io/
+sphinxcontrib-mermaid>=0.9
+
+# Autodoc with type hints
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
+sphinx-autodoc-typehints
+
+# Napoleon - Google/NumPy style docstrings
+# https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
+sphinx>=7.0
+
+# LaTeX support for PDF generation
+# Note: Full LaTeX distribution required for PDF output
+# On Ubuntu/Debian: apt install texlive-latex-recommended texlive-fonts-recommended latexmk
+# On macOS: Install MacTeX
+# Note: latexmk is a system tool, not a Python package
+
+# For building on Read the Docs
+# readthedocs-sphinx-ext>=2.0

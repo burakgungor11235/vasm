@@ -38,3 +38,17 @@ meson-private/
 # Generated files (track directory, ignore contents)
 /src/asm/generated/*
 !/src/asm/generated/.gitkeep
+
+# Documentation build output
+docs/build/
+docs/html/
+docs/source/_build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Sphinx
+.sphinx/
+docs/source/_static/.doctrees/

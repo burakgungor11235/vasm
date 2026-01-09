@@ -1,0 +1,180 @@
+```mermaid
+graph TB
+    subgraph "CPU"
+        PC["Program Counter\n(PC)"] -->|"地址"| IF["取指阶段\n(IF)"]
+        IF -->|"指令"| ID["译码阶段\n(ID)"]
+        ID -->|"操作数"| EX["执行阶段\n(EX)"]
+        EX -->|"结果"| WB["写回阶段\n(WB)"]
+        WB -->|"更新PC"| PC
+    end
+
+    subgraph "寄存器文件"
+        R0["R0"] --> ID
+        R1["R1"] --> ID
+        R2["R2"] --> ID
+        R3["R3"] --> ID
+        R4["R4"] --> ID
+        R5["R5"] --> ID
+        R6["R6"] --> ID
+        R7["R7"] --> ID
+        R8["R8"] --> ID
+        R9["R9"] --> ID
+        R10["R10"] --> ID
+        R11["R11/FP"] --> ID
+        R12["R12/IP"] --> ID
+        R13["R13/SP"] --> ID
+        R14["R14/LR"] --> ID
+        R15["R15/PC"] --> ID
+    end
+
+    subgraph "内存"
+        MEM["64KB 内存\n(0x0000-0xFFFF)"] <-->|"读取/写入"| EX
+    end
+
+    WB -->|"标志位"| CPSR["CPSR 状态寄存器"]
+```
+
+```mermaid
+flowchart LR
+    subgraph "指令格式"
+        direction TB
+        B[("31 30 29 28\nCond")] --> C[("27 26 25\nOpcode")]
+        C --> D[("24 23\nRn")]
+        D --> E[("22 21\nRd")]
+        E --> F[("20-0\nOperand2")]
+    end
+
+    subgraph "位域说明"
+        G["Cond: 4位\n条件码"]
+        H["Opcode: 3位\n操作码"]
+        I["Rn: 4位\n源寄存器"]
+        J["Rd: 4位\n目标寄存器"]
+        K["Operand2: 12位\n操作数2"]
+    end
+```
+
+```mermaid
+flowchart LR
+    subgraph "内存映射 64KB"
+        direction TB
+        TEXT[("0x0000-0x0FFF\n.text 代码段\n4KB")]
+        LPOOL[("0x1000-0x1FFF\nLiteral Pool\n4KB")]
+        DATA[("0x2000-0x5FFF\n.data 数据段\n16KB")]
+        STACK[("0x6000-0xFFFF\nStack/Heap\n40KB")]
+    end
+
+    TEXT -->|"动态扩展"| LPOOL
+    LPOOL -->|"动态扩展"| DATA
+    DATA -->|"向上增长"| STACK
+```
+
+```mermaid
+flowchart TB
+    subgraph "汇编器流水线"
+        SRC["\n源代码\n(.s 文件)"]
+        LEX["词法分析\nLexer\ntokenize()"]
+        PAR["语法分析\nParser\nparse()"]
+        CODE["代码生成\nwrite_vm_file()"]
+        OUT["\n.varm 文件"]
+    end
+
+    SRC --> LEX
+    LEX -->|"Token 序列"| PAR
+    PAR -->|"Program State"| CODE
+    CODE --> OUT
+```
+
+```mermaid
+flowchart LR
+    subgraph "两遍扫描"
+        direction TB
+        PASS1["第一遍\n• 扫描指令\n• 构建符号表\n• 记录跳转目标\n• 填充 literal pool"]
+        PASS2["第二遍\n• 编码指令\n• 解析符号\n• 处理重定位\n• 输出二进制"]
+    end
+
+    PASS1 -->|"符号表 + 位置信息"| PASS2
+```
+
+```mermaid
+flowchart TB
+    subgraph "符号表: FNV-1a 哈希 + 线性探测"
+        direction TB
+        HASH["哈希函数\nFNV-1a 32位"]
+        PROBE["冲突解决\n线性探测\n开放寻址"]
+    end
+
+    subgraph "查找过程"
+        START["输入: 标签名"] --> CALC["计算哈希索引"]
+        CALC --> CHECK["检查槽位是否为空"]
+        CHECK -->|"为空| FOUND["未找到\n返回 -1"]
+        CHECK -->|"不为空| MATCH["匹配标签名?"]
+        MATCH -->|"是| FOUND2["找到\n返回地址"]
+        MATCH -->|"否| NEXT["探测下一个槽位"]
+        NEXT --> CHECK
+    end
+```
+
+```mermaid
+flowchart LR
+    subgraph "FSM 词法分析器"
+        direction TB
+        START["START\n初始状态"] -->|"字母/下划线"| IDENT["IDENT\n标识符"]
+        START -->|"数字"| IMM["IMM\n数字立即数"]
+        START -->|"'.'"| DIR["DIR\n汇编指令"]
+        START -->|"'@'"| LABEL["LABEL\n标签"]
+        START -->|"其他"| SKIP["SKIP\n跳过空白"]
+    end
+
+    IDENT -->|"后跟':'"| LABEL2["LABEL"]
+    IMM -->|"0x/0b 前缀"| HEXBIN["HEXBIN\n十六进制/二进制"]
+```
+
+```mermaid
+flowchart TB
+    subgraph "Literal Pool 工作原理"
+        direction TB
+        DATA["大常数\n> 255"]
+        LOAD["LDR Rd, [PC, #offset]"]
+        POOL["Literal Pool\n存储常量"]
+    end
+
+    DATA -->|"无法编码"| LOAD
+    LOAD -->|"PC相对寻址\noffset"| POOL
+```
+
+```mermaid
+flowchart LR
+    subgraph "条件码标志位"
+        direction TB
+        N["N (Negative)\n负数标志\nbit31"]
+        Z["Z (Zero)\n零标志\nbit30"]
+        C["C (Carry)\n进位标志\nbit29"]
+        V["V (Overflow)\n溢出标志\nbit28"]
+    end
+
+    subgraph "条件码判断"
+        EQ["EQ - 相等\nZ=1"]
+        NE["NE - 不相等\nZ=0"]
+        GT["GT - 有符号大于\nZ=0 且 N=V"]
+        LT["LT - 有符号小于\nN≠V"]
+        CS["CS/HS - 无符号大于等于\nC=1"]
+        CC["LO - 无符号小于\nC=0"]
+    end
+```
+
+```mermaid
+flowchart LR
+    subgraph "系统调用流程"
+        direction TB
+        SWI["SWI #num\n软中断指令"]
+        DISP["中断分发器\nDispatcher"]
+        SYSCALL["系统调用处理\nSyscall Handler"]
+        KERNEL["内核服务\nKernel Service"]
+        RET["返回用户程序"]
+    end
+
+    SWI -->|"中断号"| DISP
+    DISP -->|"查表"| SYSCALL
+    SYSCALL -->|"参数: r0-r6"| KERNEL
+    KERNEL -->|"结果: r0"| RET
+```

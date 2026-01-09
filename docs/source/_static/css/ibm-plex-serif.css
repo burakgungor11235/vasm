@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400;1,600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400;1,600&display=swap');
+
+/* Typography overrides for IBM Plex Serif
+ * Base styles are in carbon-theme.css
+ */
+
+/* Headings use Serif */
+h1, h2, h3, h4, h5, h6,
+.rst-content h1,
+.rst-content h2,
+.rst-content h3,
+.rst-content h4,
+.rst-content h5,
+.rst-content h6 {
+    font-family: var(--cds-font-serif, 'IBM Plex Serif', serif);
+}
+
+/* Code uses Mono */
+code, pre,
+.rst-content code,
+.rst-content pre {
+    font-family: var(--cds-font-mono, 'IBM Plex Mono', monospace);
+}
+
+/* Content text uses Serif for better readability */
+.rst-content p,
+.rst-content li {
+    font-family: var(--cds-font-serif, 'IBM Plex Serif', serif);
+}
