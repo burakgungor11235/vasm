@@ -71,4 +71,4 @@ Located in `examples/`:
 
 ## Further Reading
 
-See [REFERENCE.md](REFERENCE.md) for complete documentation of the instruction set, architecture, and assembly syntax.
+See [REFERENCE.md](docs/REFERENCE.md) for complete documentation of the instruction set, architecture, and assembly syntax.

@@ -11,6 +11,10 @@ Usage:
     python3 gen_lookup_tables.py --stdout     # Output instr_name_lookup.c to stdout
     python3 gen_lookup_tables.py --cond       # Output cond_code_lookup.c to stdout
     python3 gen_lookup_tables.py --header     # Output lookup_tables.h to stdout
+
+Note:
+    This was built with Python 3.13.11 in mind.
+    At this moment, there is no guarantee that it will work with older or newer python versions.
 """
 
 import re
@@ -64,9 +68,8 @@ def fnv1a_hash(s):
 
 
 def generate_instruction_names_c(opcodes, size=256):
-    """Generate instruction name lookup table."""
+    """Generate instruction name lookup table with linear probing for collision resolution."""
     items = [(name[3:].lower(), value) for name, value in opcodes.items()]
-    items.sort(key=lambda x: fnv1a_hash(x[0]))
 
     count = len(items)
     actual_size = 256
@@ -95,9 +98,24 @@ def generate_instruction_names_c(opcodes, size=256):
         "static const instr_name_entry_t INSTR_NAME_TABLE[INSTR_NAME_TABLE_SIZE] = {"
     )
 
-    for i in range(actual_size):
-        lines.append("    { NULL, 0 },")
+    table = [(None, 0) for _ in range(actual_size)]
+    for name, opcode in items:
+        h = fnv1a_hash(name)
+        idx = h & mask
+        probe = 0
+        while table[idx][0] is not None:
+            probe += 1
+            if probe >= actual_size:
+                break
+            idx = (idx + 1) & mask
+        if table[idx][0] is None:
+            table[idx] = (name, opcode)
 
+    for name, opcode in table:
+        if name is None:
+            lines.append("    { NULL, 0 },")
+        else:
+            lines.append(f'    {{ "{name}", {opcode} }},')
     lines.append("};")
     lines.append("")
     lines.append("uint8_t")
@@ -109,11 +127,18 @@ def generate_instruction_names_c(opcodes, size=256):
     lines.append("        h ^= (uint8_t)(*p | 0x20);")
     lines.append("        h *= 0x01000193;")
     lines.append("    }")
+    lines.append(f"    uint32_t idx = h & {mask};")
     lines.append(
-        f"    const instr_name_entry_t* entry = &INSTR_NAME_TABLE[h & {mask}];"
+        "    for (uint32_t probe = 0; probe < INSTR_NAME_TABLE_SIZE; probe++) {"
     )
-    lines.append("    if (entry->name && strcasecmp(entry->name, name) == 0) {")
-    lines.append("        return entry->opcode;")
+    lines.append("        const instr_name_entry_t* entry = &INSTR_NAME_TABLE[idx];")
+    lines.append("        if (entry->name == NULL) {")
+    lines.append("            return 0;")
+    lines.append("        }")
+    lines.append("        if (strcasecmp(entry->name, name) == 0) {")
+    lines.append("            return entry->opcode;")
+    lines.append("        }")
+    lines.append("        idx = (idx + 1) & (INSTR_NAME_TABLE_SIZE - 1);")
     lines.append("    }")
     lines.append("    return 0;")
     lines.append("}")

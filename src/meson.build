@@ -93,7 +93,8 @@ unit_lexer = executable('unit_lexer', 'test/unit/lexer.c',
 )
 
 unit_parser = executable('unit_parser', 'test/unit/parser.c',
-  include_directories: include_directories('../../include'),
+  include_directories: [include_directories('../../include'), generated_include],
+  sources: ['asm/symbol_table.c', gen_header, gen_lookup, gen_cond],
 )
 
 test('unit_symbol_table', unit_symbol_table)
