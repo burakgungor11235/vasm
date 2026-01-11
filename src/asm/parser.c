@@ -223,8 +223,7 @@ static int
 lookup_label(parser_ctx_t* ctx, const char* name)
 {
     u32 addr;
-    int result = symbol_lookup(&ctx->labels, name, &addr);
-    if (result == 0) {
+    if (symbol_lookup(&ctx->labels, name, &addr)) {
 	return (int)addr;
     }
     return -1;
@@ -906,8 +905,9 @@ parse_pseudo_ldr(parser_ctx_t* ctx, token_t* tokens, int* i, int token_count, co
     u8 cond = parse_condition(condition);
     u32 pool_index = add_literal_pool_entry(ctx, label_addr >= 0 ? (u32)label_addr : 0);
 
-    /* Always add reloc for =label to handle runtime address calculation */
-    add_reloc(ctx, label_name, pool_index, 0);
+    if (label_addr < 0) {
+	add_reloc(ctx, label_name, pool_index, 0);
+    }
 
     if (ctx->literal_pool_ref_count < MAX_LITERAL_POOL_REFS) {
 	ctx->literal_pool_refs[ctx->literal_pool_ref_count].instr_addr = ctx->text_size * 4;
@@ -1079,12 +1079,6 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 	}
     }
 
-    u32 text_size_before_pool = ctx.text_size;
-    emit_literal_pool(&ctx);
-
-    /* Calculate data_offset AFTER emit_literal_pool since text_size includes literal pool entries */
-    u32 data_offset = 32 + ctx.text_size * 4;
-
     for (int j = 0; j < ctx.reloc_count; j++) {
 	int addr = lookup_label(&ctx, ctx.relocs[j].name);
 	if (addr >= 0) {
@@ -1094,11 +1088,12 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 		u32 offset = (u32)signed_offset;
 		*patch_addr = (*patch_addr & 0xFFF0FFFF) | (offset & 0xFFFFF);
 	    } else {
-		u32 actual_addr = data_offset + (addr - 0x10000);
-		ctx.text[text_size_before_pool + ctx.relocs[j].address] = actual_addr;
+		ctx.literal_pool[ctx.relocs[j].address].value = (u32)addr;
 	    }
 	}
     }
+
+    emit_literal_pool(&ctx);
 
     prog->text_size = ctx.text_size;
     prog->data_size = ctx.data_size;

@@ -173,7 +173,7 @@ vm_load(vm_state_t* vm, const char* filename)
 
     vm->mem.text_offset = text_offset;
     vm->mem.text_size = text_size;
-    vm->mem.data_offset = data_offset;
+    vm->mem.data_offset = DATA_OFFSET;
     vm->mem.data_size = data_size;
 
     if (fread(vm->mem.memory + text_offset, 1, text_size, f) != (size_t)text_size) {
@@ -182,7 +182,7 @@ vm_load(vm_state_t* vm, const char* filename)
     }
 
     if (data_size > 0) {
-	if (fread(vm->mem.memory + data_offset, 1, data_size, f) != (size_t)data_size) {
+	if (fread(vm->mem.memory + DATA_OFFSET, 1, data_size, f) != (size_t)data_size) {
 	    fclose(f);
 	    return -1;
 	}
