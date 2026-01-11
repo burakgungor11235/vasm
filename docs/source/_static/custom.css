@@ -1,211 +1,243 @@
 /* Custom CSS for varm Documentation */
 /*
- * This stylesheet provides custom styling for the varm
- * documentation built with Sphinx and the Read the Docs theme.
+ * Overrides for Sphinx-Immaterial to achieve an "IBM/Carbon-like" aesthetic.
+ * Focus: Square corners, industrial feel, specific typography weights.
  */
 
-/*---------------------------------------------------------------------------
- * Color palette
- *---------------------------------------------------------------------------
-
 :root {
-    --varm-primary: #1a5f7a;
-    --varm-secondary: #159895;
-    --varm-accent: #57c5b6;
-    --varm-dark: #002b5b;
-    --varm-light: #f8f9fa;
-    --varm-code-bg: #f1f3f5;
+    /* Enforce IBM Plex Fonts globally (already set in conf.py, but reinforcing) */
+    --md-text-font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+    --md-code-font: "IBM Plex Mono", SFMono-Regular, Consolas, Menlo, monospace;
+
+    /* Carbon-like Spacing & Radius */
+    --md-border-radius: 0px;
+    /* Square everything */
+    --md-admonition-radius: 0px;
+    --button-radius: 0px;
+
+    /* Content Width */
+    --md-typeset-a-color: #0f62fe;
+    /* Carbon Blue 60 */
 }
 
-/*---------------------------------------------------------------------------
- * Typography
- *---------------------------------------------------------------------------
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    line-height: 1.6;
+/* Link styling */
+.md-typeset a {
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-bottom 0.2s ease;
 }
 
-h1, h2, h3, h4, h5, h6 {
-    color: var(--varm-dark);
+.md-typeset a:hover {
+    border-bottom: 1px solid #0f62fe;
+}
+
+/* ---------------------------------------------------------------------------
+ * Typography Overrides
+ * --------------------------------------------------------------------------- */
+
+/* Make headers feel more "engineered" */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-weight: 600;
+    /* SemiBold */
+    letter-spacing: -0.5px;
 }
 
-code, pre {
-    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+/* ---------------------------------------------------------------------------
+ * UI Element "Squaring" (Removing Material Roundness)
+ * --------------------------------------------------------------------------- */
+
+/* Buttons */
+.md-button {
+    border-radius: 0;
+    text-transform: none;
+    /* Carbon doesn't scream uppercase */
+    font-weight: 500;
+    transition: background-color 0.2s ease;
 }
 
-/*---------------------------------------------------------------------------
- * Header styling
- *---------------------------------------------------------------------------
-
-.wy-header {
-    background: linear-gradient(135deg, var(--varm-dark) 0%, var(--varm-primary) 100%);
-    color: white;
+/* Search Bar */
+.md-search__input {
+    border-radius: 0;
 }
 
-.wy-nav-side {
-    background-color: var(--varm-light);
+/* Sidebar Navigation Items */
+.md-nav__link {
+    border-radius: 0;
 }
 
-/*---------------------------------------------------------------------------
- * Instruction format diagrams
- *---------------------------------------------------------------------------
-
-.instruction-format {
-    background-color: var(--varm-code-bg);
-    border: 1px solid #e1e4e8;
-    border-radius: 4px;
-    padding: 1rem;
-    margin: 1rem 0;
-    overflow-x: auto;
-}
-
-.instruction-format table {
-    margin: 0 auto;
-    border-collapse: collapse;
-}
-
-.instruction-format td,
-.instruction-format th {
-    border: 1px solid #d1d5da;
-    padding: 0.5rem 1rem;
-    text-align: center;
-}
-
-.instruction-format .field-opcode {
-    background-color: #e1f5fe;
-}
-
-.instruction-format .field-cond {
-    background-color: #e8f5e9;
-}
-
-.instruction-format .field-rn {
-    background-color: #fff3e0;
-}
-
-.instruction-format .field-rd {
-    background-color: #fce4ec;
-}
-
-.instruction-format .field-operand {
-    background-color: #f3e5f5;
-}
-
-/*---------------------------------------------------------------------------
- * Code blocks
- *---------------------------------------------------------------------------
-
+/* Code Blocks */
 .highlight {
-    background-color: var(--varm-code-bg);
-    border-radius: 4px;
+    border-radius: 0;
 }
 
-.highlight-vasm .highlight {
-    border-left: 4px solid var(--varm-secondary);
+/* ---------------------------------------------------------------------------
+ * Sidebar Navigation Enhancements
+ * --------------------------------------------------------------------------- */
+
+/* Make Toctree captions (Section Titles) prominent */
+.md-nav__item--nested>label.md-nav__link,
+.md-nav__link[for^="__nav_"] {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.65rem;
+    padding-top: 1.5em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    margin-bottom: 0.5em;
+    display: block;
 }
 
-/*---------------------------------------------------------------------------
- * Mermaid diagrams
- *---------------------------------------------------------------------------
-
-.mermaid {
-    display: flex;
-    justify-content: center;
-    margin: 1.5rem 0;
-    background-color: #fafafa;
-    padding: 1rem;
-    border-radius: 4px;
+[data-md-color-scheme="default"] .md-nav__item--nested>label.md-nav__link,
+[data-md-color-scheme="default"] .md-nav__link[for^="__nav_"] {
+    color: #161616;
+    /* Carbon Gray 100 */
+    border-bottom-color: #e0e0e0;
 }
 
-/*---------------------------------------------------------------------------
- * Warning and note boxes
- *---------------------------------------------------------------------------
-
-.note {
-    background-color: #e3f2fd;
-    border-left: 4px solid #2196f3;
-    padding: 0.75rem 1rem;
-    margin: 1rem 0;
-    border-radius: 0 4px 4px 0;
+[data-md-color-scheme="slate"] .md-nav__item--nested>label.md-nav__link,
+[data-md-color-scheme="slate"] .md-nav__link[for^="__nav_"] {
+    color: #ffffff;
+    border-bottom-color: #393939;
 }
 
-.warning {
-    background-color: #fff3e0;
-    border-left: 4px solid #ff9800;
-    padding: 0.75rem 1rem;
-    margin: 1rem 0;
-    border-radius: 0 4px 4px 0;
+/* Remove hover effect on these "headers" to make them feel structural */
+.md-nav__item--nested>label.md-nav__link:hover {
+    background-color: transparent;
+    cursor: default;
 }
 
-.tip {
-    background-color: #e8f5e9;
-    border-left: 4px solid #4caf50;
-    padding: 0.75rem 1rem;
-    margin: 1rem 0;
-    border-radius: 0 4px 4px 0;
+/* Admonitions (Note, Warning, etc.) */
+.md-typeset .admonition,
+.md-typeset details {
+    border-radius: 0;
+    border-left-width: 4px;
+    /* Thicker left border like Carbon */
+    box-shadow: none;
+    border-right: 1px solid #e0e0e0;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
 }
 
-/*---------------------------------------------------------------------------
- * Tables
- *---------------------------------------------------------------------------
-
-table.docutils {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
+[data-md-color-scheme="slate"] .md-typeset .admonition,
+[data-md-color-scheme="slate"] .md-typeset details {
+    border-right-color: #393939;
+    border-top-color: #393939;
+    border-bottom-color: #393939;
 }
 
-table.docutils th,
-table.docutils td {
-    border: 1px solid #d1d5da;
-    padding: 0.5rem 1rem;
+/* ---------------------------------------------------------------------------
+ * Color & Theme Tweaks
+ * --------------------------------------------------------------------------- */
+
+/* Admonition Severity Colors (closer to Carbon tokens) */
+.md-typeset .note {
+    border-left-color: #0f62fe;
+    /* Carbon Blue 60 */
 }
 
-table.docutils th {
-    background-color: var(--varm-code-bg);
-    font-weight: 600;
+.md-typeset .warning {
+    border-left-color: #f1c21b;
+    /* Carbon Yellow 20 (text is often dark, border yellow) */
 }
 
-/*---------------------------------------------------------------------------
- * Mathematical formulas
- *---------------------------------------------------------------------------
-
-.math {
-    font-size: 1.1em;
+.md-typeset .danger,
+.md-typeset .error {
+    border-left-color: #da1e28;
+    /* Carbon Red 60 */
 }
 
-/*---------------------------------------------------------------------------
- * Footer
- *---------------------------------------------------------------------------
-
-.footer {
-    background-color: var(--varm-dark);
-    color: white;
-    padding: 1rem;
-    text-align: center;
-    margin-top: 2rem;
+.md-typeset .tip,
+.md-typeset .hint {
+    border-left-color: #42be65;
+    /* Carbon Green 50 */
 }
 
-/*---------------------------------------------------------------------------
- * Responsive design
- *---------------------------------------------------------------------------
-
-@media screen and (max-width: 768px) {
-    .instruction-format {
-        font-size: 0.9rem;
-    }
+/* Header Gradient Override - making it solid and industrial */
+/* Force Industrial Black header in ALL modes */
+[data-md-color-scheme="default"] .md-header,
+[data-md-color-scheme="slate"] .md-header {
+    background-color: #161616;
+    /* Carbon Gray 100 */
 }
 
-/*---------------------------------------------------------------------------
- * Hide navbar navigation links (keep logo, search, theme switcher, GitHub)
- *---------------------------------------------------------------------------
-
-.bd-header .navbar-nav {
-    display: none !important;
+/* 
+ * CRITICAL: High Contrast Header Elements
+ * Ensure all text/icons in the header are WHITE because the background is forced BLACK.
+ */
+[data-md-color-scheme="default"] .md-header {
+    color: #ffffff;
 }
 
-.bd-header .nav-item.nav-link {
-    display: none !important;
+[data-md-color-scheme="default"] .md-header .md-header__button,
+[data-md-color-scheme="default"] .md-header .md-header__title,
+[data-md-color-scheme="default"] .md-header .md-header__option,
+[data-md-color-scheme="default"] .md-tabs__link {
+    color: #ffffff;
+}
+
+[data-md-color-scheme="default"] .md-header .md-header__button svg,
+[data-md-color-scheme="default"] .md-header .md-icon svg {
+    fill: currentColor;
+}
+
+/* Handle hover states for header buttons in light mode */
+[data-md-color-scheme="default"] .md-header .md-header__button:hover {
+    opacity: 0.7;
+}
+
+/* Sidebar background tweaking */
+[data-md-color-scheme="default"] .md-sidebar {
+    background-color: #f4f4f4;
+    /* Carbon Gray 10 */
+}
+
+/* ---------------------------------------------------------------------------
+ * varm Doctest Styling
+ * --------------------------------------------------------------------------- */
+
+/* Success state for code-with-test directive */
+.varm-doctest-success {
+    position: relative;
+    border-left: 4px solid #42be65;
+    /* Carbon Green 50 */
+}
+
+.varm-doctest-success>.highlight {
+    border-left: none;
+}
+
+/* Success indicator icon */
+.varm-doctest-success::after {
+    content: "";
+    position: absolute;
+    right: 12px;
+    top: 8px;
+    width: 20px;
+    height: 20px;
+    background-color: #42be65;
+    /* Carbon Green 50 */
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+}
+
+/* Failure state - will be triggered by build failure (no HTML rendering) */
+/* Note: Build failures halt the build, so no CSS needed for failure state */
+
+/* Code block container for doctest */
+.code-with-test-container {
+    margin-bottom: 1em;
+}
+
+/* Ensure code blocks inside containers maintain proper styling */
+.code-with-test-container .highlight {
+    margin-top: 0;
+    border-radius: 0;
 }

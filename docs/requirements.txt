@@ -36,6 +36,10 @@ sphinx-autodoc-typehints
 # https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
 sphinx>=7.0
 
+# sphinx-copybutton - Add copy button to code blocks
+# https://sphinx-copybutton.readthedocs.io/
+sphinx-copybutton>=0.5.2
+
 # LaTeX support for PDF generation
 # Note: Full LaTeX distribution required for PDF output
 # On Ubuntu/Debian: apt install texlive-latex-recommended texlive-fonts-recommended latexmk

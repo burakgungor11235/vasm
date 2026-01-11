@@ -104,7 +104,7 @@ You can also define data in your programs. Create ``data.vasm``:
 
    ; Define a constant in the data section
    .data
-value:  .word 12345
+   value:  .word 12345
 
    ; Use the constant
    .text
@@ -126,9 +126,9 @@ Assemble and run:
    12345
 
 Debugging with Verbose Output
-----------------------------
+-----------------------------
 
-Both vasm and varm support debug output:
+Both varm and varm support debug output:
 
 .. code-block:: bash
 
@@ -172,12 +172,12 @@ Next Steps
 
 Now that you've run your first varm programs:
 
-1. Read the :doc:`../tutorial/index` for a comprehensive introduction
-2. Look at the :doc:`../reference/index` for complete instruction reference
-3. Try the :doc:`../exercises/index` to practice your skills
+1. Read the :doc:`tutorial/index` for a comprehensive introduction
+2. Look at the :doc:`reference/index` for complete instruction reference
+3. Try the :doc:`exercises/index` to practice your skills
 
 For more information:
 
 * See :doc:`installation` for advanced build options
-* See :doc:`../reference/syscalls` for available system calls
-* See :doc:`../reference/file-format` for the .varm file specification
+* See :doc:`reference/syscalls` for available system calls
+* See :doc:`reference/file-format` for the .varm file specification
