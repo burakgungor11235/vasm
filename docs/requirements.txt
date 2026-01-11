@@ -14,27 +14,27 @@
 
 # Sphinx - Documentation generator
 # https://www.sphinx-doc.org/
-sphinx>=7.0
+sphinx==8.2.3
 
 # Breathe - Bridge between Sphinx and Doxygen
 # https://breathe.readthedocs.io/
-breathe>=4.35.0
+breathe>=4.36.0
 
+# Theme - IBM Carbon / Material aesthetic
+# https://jbms.github.io/sphinx-immaterial/
+sphinx-immaterial>=0.13.8
 
-# pydata-sphinx-theme - Jupyter/SciPy theme for Sphinx
+# pydata-sphinx-theme - Backup theme
 # https://pydata-sphinx-theme.readthedocs.io/
-pydata-sphinx-theme>=0.15.0
+pydata-sphinx-theme>=0.16.0
 
+# Mermaid diagrams support
 # https://sphinxcontrib-mermaid.readthedocs.io/
-sphinxcontrib-mermaid>=0.9
+sphinxcontrib-mermaid>=1.2.3
 
 # Autodoc with type hints
 # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
-sphinx-autodoc-typehints
-
-# Napoleon - Google/NumPy style docstrings
-# https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
-sphinx>=7.0
+sphinx-autodoc-typehints>=2.0.0
 
 # sphinx-copybutton - Add copy button to code blocks
 # https://sphinx-copybutton.readthedocs.io/
