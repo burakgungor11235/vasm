@@ -37,6 +37,9 @@ from docutils.statemachine import StringList
 from sphinx.directives.code import CodeBlock
 from sphinx.application import Sphinx
 from sphinx.errors import SphinxError
+from sphinx.util import logging
+
+logger = logging.getLogger(__name__)
 
 
 class VarmTestError(SphinxError):
@@ -206,6 +209,8 @@ class CodeWithTest(CodeBlock):
 
         If the test fails, raises BuildError with detailed logs.
         """
+
+        # temporary fix, will be adding new env vars in qol.sh in the future for this kind of workload.
         app: Sphinx = self.state.document.settings.env.app
         varm_binary: str = app.config.varm_binary
         vasm_binary: str = app.config.vasm_binary
@@ -215,10 +220,23 @@ class CodeWithTest(CodeBlock):
         if test_dir is None:
             test_dir = tempfile.gettempdir()
 
+        test_name: str = self.options.get("test-name", "doctest")
         stdin: str = self.options.get("stdin", "") or ""
         expected_stdout: str = self.options.get("expected_stdout", "") or ""
         expected_exit_str: str = self.options.get("expected_exit", "0") or "0"
-        test_name: str = self.options.get("test-name", "doctest")
+
+        # Portability: Check if we should skip tests
+        is_prod = os.environ.get("is_prod", "").lower() in ("true", "1", "yes")
+        
+        # If in production or binaries are missing, just show the code
+        if is_prod:
+            logger.info(f"[{test_name}] skipping test (is_prod=True)")
+            return super().run()
+
+        # Check if binaries exist before trying to run
+        if not os.path.exists(varm_binary) or not os.path.exists(vasm_binary):
+            logger.warning(f"[{test_name}] skipping test: binaries not found at {varm_binary} or {vasm_binary}")
+            return super().run()
 
         expected_stdout = process_escape_sequences(expected_stdout)
 

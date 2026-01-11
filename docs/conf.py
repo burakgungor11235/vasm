@@ -132,7 +132,8 @@ linkcheck_retries = 2
 linkcheck_workers = 5
 
 # varm doctest
-varm_binary = "/home/personal/Projects/varm/build/src/varm"
-vasm_binary = "/home/personal/Projects/varm/build/src/vasm"
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+varm_binary = os.path.join(_project_root, "build", "src", "varm")
+vasm_binary = os.path.join(_project_root, "build", "src", "vasm")
 varm_test_timeout = 10
 varm_test_dir = None
