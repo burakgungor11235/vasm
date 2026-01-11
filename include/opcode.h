@@ -130,6 +130,8 @@ typedef struct {
 u32
 check_condition(vm_state_t* vm, u8 cond);
 void
+set_nz(vm_state_t* vm, u32 result);
+void
 set_nzcv(vm_state_t* vm, u32 result);
 u32
 get_flag(vm_state_t* vm, int flag);

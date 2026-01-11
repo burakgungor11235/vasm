@@ -44,11 +44,14 @@ debug_init(debug_config_t* config)
     register_tag(config, "regs", "REGS", "Dump registers", 0);
     register_tag(config, "mem", "MEM", "Log memory accesses", 0);
     register_tag(config, "syscall", "SYSCALL", "Trace system calls", 0);
+    register_tag(config, "branch", "BRANCH", "Trace branch instructions", 0);
     register_tag(config, "stats", "STATS", "Show execution statistics", 0);
     register_tag(config, "asm", "ASM", "Assembler diagnostics", 0);
     register_tag(config, "label", "LABEL", "Label resolution debug", 0);
     register_tag(config, "pool", "POOL", "Literal pool debug", 0);
     register_tag(config, "parser", "PARS", "Parser tracing", 0);
+    register_tag(config, "load", "LOAD", "VM loading debug", 0);
+    register_tag(config, "cond", "COND", "Condition code checking", 0);
 }
 
 void
@@ -106,6 +109,8 @@ debug_disable_tag(debug_config_t* config, const char* tag)
 int
 debug_is_enabled(debug_config_t* config, const char* tag)
 {
+    if (!config)
+	return 0;
     debug_tag_t* t = find_tag(config, tag);
     if (!t)
 	return 0;
@@ -199,6 +204,18 @@ debug_instr(debug_config_t* config, vm_state_t* vm, u32 instr, u32 pc)
     case OP_NOP:
 	fprintf(config->output, "%-4s\n", op_name);
 	break;
+    case OP_CMP:
+    case OP_CMN:
+    case OP_TST:
+    case OP_TEQ: {
+	u8 rm = operand & REG_MASK;
+	if (operand & OPERAND_IMM_BIT) {
+	    fprintf(config->output, "%-4s r%u, #0x%03x\n", op_name, rn, operand & 0xFF);
+	} else {
+	    fprintf(config->output, "%-4s r%u, r%u\n", op_name, rn, rm);
+	}
+	break;
+    }
     default:
 	fprintf(config->output, "0x%02x\n", opcode);
 	break;
@@ -269,4 +286,22 @@ debug_stats(debug_config_t* config, vm_state_t* vm)
     fprintf(config->output, "  memory reads: %lu\n", (unsigned long)config->mem_reads);
     fprintf(config->output, "  memory writes: %lu\n", (unsigned long)config->mem_writes);
     fprintf(config->output, "  syscalls: %lu\n", (unsigned long)config->syscalls);
+}
+
+void
+debug_load(debug_config_t* config, const char* filename, u32 text_offset, u32 text_size,
+           u8* text_data)
+{
+    if (!debug_is_enabled(config, "load"))
+	return;
+    fprintf(config->output, "[LOAD] loading '%s': text_offset=0x%X text_size=%u\n", filename,
+            text_offset, text_size);
+    if (text_data && text_size > 0) {
+	fprintf(config->output, "  text: ");
+	for (u32 i = 0; i < text_size; i += 4) {
+	    u32 word = *(u32*)(text_data + i);
+	    fprintf(config->output, "0x%08X ", word);
+	}
+	fprintf(config->output, "\n");
+    }
 }

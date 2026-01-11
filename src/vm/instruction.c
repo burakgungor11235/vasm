@@ -44,7 +44,6 @@ exec_mov(vm_state_t* vm, u32 instr)
     u8 rd = (instr >> 12) & 0xF;
     u32 operand = decode_operand2(vm, instr);
     vm_set_reg(vm, rd, operand);
-    set_nzcv(vm, operand);
 }
 
 void
@@ -53,7 +52,6 @@ exec_mvn(vm_state_t* vm, u32 instr)
     u8 rd = (instr >> 12) & 0xF;
     u32 operand = decode_operand2(vm, instr);
     vm_set_reg(vm, rd, ~operand);
-    set_nzcv(vm, ~operand);
 }
 
 void
@@ -64,7 +62,6 @@ exec_add(vm_state_t* vm, u32 instr)
     u32 operand = decode_operand2(vm, instr);
     u32 result = vm_get_reg(vm, rn) + operand;
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -76,7 +73,6 @@ exec_adc(vm_state_t* vm, u32 instr)
     u32 carry = get_flag(vm, 29);
     u32 result = vm_get_reg(vm, rn) + operand + carry;
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -87,7 +83,6 @@ exec_sub(vm_state_t* vm, u32 instr)
     u32 operand = decode_operand2(vm, instr);
     u32 result = vm_get_reg(vm, rn) - operand;
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -99,7 +94,6 @@ exec_sbc(vm_state_t* vm, u32 instr)
     u32 carry = get_flag(vm, 29);
     u32 result = vm_get_reg(vm, rn) - operand - (1 - carry);
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -110,7 +104,6 @@ exec_rsb(vm_state_t* vm, u32 instr)
     u32 operand = decode_operand2(vm, instr);
     u32 result = operand - vm_get_reg(vm, rn);
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -122,7 +115,6 @@ exec_rsc(vm_state_t* vm, u32 instr)
     u32 carry = get_flag(vm, 29);
     u32 result = operand - vm_get_reg(vm, rn) - (1 - carry);
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -133,7 +125,6 @@ exec_and(vm_state_t* vm, u32 instr)
     u32 operand = decode_operand2(vm, instr);
     u32 result = vm_get_reg(vm, rn) & operand;
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -144,7 +135,6 @@ exec_eor(vm_state_t* vm, u32 instr)
     u32 operand = decode_operand2(vm, instr);
     u32 result = vm_get_reg(vm, rn) ^ operand;
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -155,7 +145,6 @@ exec_orr(vm_state_t* vm, u32 instr)
     u32 operand = decode_operand2(vm, instr);
     u32 result = vm_get_reg(vm, rn) | operand;
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -166,7 +155,6 @@ exec_bic(vm_state_t* vm, u32 instr)
     u32 operand = decode_operand2(vm, instr);
     u32 result = vm_get_reg(vm, rn) & ~operand;
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -193,7 +181,7 @@ exec_tst(vm_state_t* vm, u32 instr)
     u8 rn = (instr >> 16) & 0xF;
     u32 operand = decode_operand2(vm, instr);
     u32 result = vm_get_reg(vm, rn) & operand;
-    set_nzcv(vm, result);
+    set_nz(vm, result);
 }
 
 void
@@ -202,30 +190,28 @@ exec_teq(vm_state_t* vm, u32 instr)
     u8 rn = (instr >> 16) & 0xF;
     u32 operand = decode_operand2(vm, instr);
     u32 result = vm_get_reg(vm, rn) ^ operand;
-    set_nzcv(vm, result);
+    set_nz(vm, result);
 }
 
 void
 exec_mul(vm_state_t* vm, u32 instr)
 {
-    u8 rd = (instr >> 12) & 0xF;
-    u8 rm = (instr >> 8) & 0xF;
-    u8 rs = (instr >> 4) & 0xF;
+    u8 rd = (instr >> RD_SHIFT) & REG_MASK;
+    u8 rm = (instr >> 8) & REG_MASK;
+    u8 rs = (instr >> 4) & REG_MASK;
     u32 result = vm_get_reg(vm, rm) * vm_get_reg(vm, rs);
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
 exec_mla(vm_state_t* vm, u32 instr)
 {
-    u8 rd = (instr >> 12) & 0xF;
-    u8 rm = (instr >> 8) & 0xF;
-    u8 rs = (instr >> 4) & 0xF;
-    u8 rn = (instr >> 16) & 0xF;
+    u8 rd = (instr >> RD_SHIFT) & REG_MASK;
+    u8 rm = (instr >> 8) & REG_MASK;
+    u8 rs = (instr >> 4) & REG_MASK;
+    u8 rn = (instr >> RN_SHIFT) & REG_MASK;
     u32 result = vm_get_reg(vm, rm) * vm_get_reg(vm, rs) + vm_get_reg(vm, rn);
     vm_set_reg(vm, rd, result);
-    set_nzcv(vm, result);
 }
 
 void
@@ -288,10 +274,16 @@ void
 exec_b(vm_state_t* vm, u32 instr)
 {
     u32 offset = instr & BRANCH20_OFFSET_MASK;
+    u32 orig_offset = offset;
+    u32 pc_before = vm->regs.pc;
     if (offset & BRANCH20_SIGN_BIT) {
-	offset |= 0xFFF00000;
+	offset |= SIGN_EXTEND_12;
     }
-    vm->regs.pc = (vm->regs.pc - 4) + 8 + (offset << 2);
+    u32 pc_after = (pc_before - 4) + 4 + (offset << 2);
+    debug_log((debug_config_t*)vm->debug_config, "branch",
+              "[BRANCH] B: pc=0x%08X offset_raw=0x%05X offset=0x%08X pc_after=0x%08X\n", pc_before,
+              orig_offset, offset, pc_after);
+    vm->regs.pc = pc_after;
 }
 
 void
@@ -299,10 +291,16 @@ exec_bl(vm_state_t* vm, u32 instr)
 {
     vm->regs.lr = vm->regs.pc;
     u32 offset = instr & BRANCH20_OFFSET_MASK;
+    u32 orig_offset = offset;
+    u32 pc_before = vm->regs.pc;
     if (offset & BRANCH20_SIGN_BIT) {
-	offset |= 0xFFF00000;
+	offset |= SIGN_EXTEND_12;
     }
-    vm->regs.pc = (vm->regs.pc - 4) + 8 + (offset << 2);
+    u32 pc_after = (pc_before - 4) + 4 + (offset << 2);
+    debug_log((debug_config_t*)vm->debug_config, "branch",
+              "[BRANCH] BL: pc=0x%08X offset_raw=0x%05X offset=0x%08X pc_after=0x%08X\n", pc_before,
+              orig_offset, offset, pc_after);
+    vm->regs.pc = pc_after;
 }
 
 void

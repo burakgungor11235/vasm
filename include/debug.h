@@ -3,6 +3,9 @@
 
 #include "opcode.h"
 #include <stdio.h>
+#include <string.h>
+#include <strings.h>
+#include <stdarg.h>
 
 #define MAX_TAGS 32
 
@@ -28,6 +31,25 @@ typedef struct {
     uint64_t mem_writes;
     uint64_t syscalls;
 } debug_config_t;
+
+static inline void
+debug_log(debug_config_t* config, const char* tag, const char* format, ...)
+{
+    if (!config)
+	return;
+    for (int i = 0; i < config->tag_count; i++) {
+	if ((config->tags[i].name && strcasecmp(config->tags[i].name, tag) == 0) ||
+	    (config->tags[i].abbr && strcasecmp(config->tags[i].abbr, tag) == 0)) {
+	    if (config->tags[i].enabled) {
+		va_list args;
+		va_start(args, format);
+		vfprintf(config->output, format, args);
+		va_end(args);
+	    }
+	    return;
+	}
+    }
+}
 
 void
 debug_init(debug_config_t* config);
@@ -55,12 +77,8 @@ void
 debug_syscall(debug_config_t* config, vm_state_t* vm, u32 syscall);
 void
 debug_stats(debug_config_t* config, vm_state_t* vm);
-
-#define debug_log(config, tag, ...)                                                                \
-    do {                                                                                           \
-	if (debug_is_enabled(config, tag)) {                                                       \
-	    fprintf(config->output, __VA_ARGS__);                                                  \
-	}                                                                                          \
-    } while (0)
+void
+debug_load(debug_config_t* config, const char* filename, u32 text_offset, u32 text_size,
+           u8* text_data);
 
 #endif

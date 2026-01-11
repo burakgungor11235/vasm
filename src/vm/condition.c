@@ -17,12 +17,19 @@ set_flag(vm_state_t* vm, int flag, u32 value)
 }
 
 void
+set_nz(vm_state_t* vm, u32 result)
+{
+    set_flag(vm, CPSR_N_POS, (result >> CPSR_N_POS) & 1);
+    set_flag(vm, CPSR_Z_POS, result == 0);
+}
+
+void
 set_nzcv(vm_state_t* vm, u32 result)
 {
-    set_flag(vm, 31, (result >> 31) & 1);
-    set_flag(vm, 30, result == 0);
-    set_flag(vm, 29, 0);
-    set_flag(vm, 28, 0);
+    set_flag(vm, CPSR_N_POS, (result >> CPSR_N_POS) & 1);
+    set_flag(vm, CPSR_Z_POS, result == 0);
+    set_flag(vm, CPSR_C_POS, 0);
+    set_flag(vm, CPSR_V_POS, 0);
 }
 
 u32
@@ -32,10 +39,10 @@ check_condition(vm_state_t* vm, u8 cond)
 	return 1;
     }
 
-    u32 n = get_flag(vm, 31);
-    u32 z = get_flag(vm, 30);
-    u32 c = get_flag(vm, 29);
-    u32 v = get_flag(vm, 28);
+    u32 n = get_flag(vm, CPSR_N_POS);
+    u32 z = get_flag(vm, CPSR_Z_POS);
+    u32 c = get_flag(vm, CPSR_C_POS);
+    u32 v = get_flag(vm, CPSR_V_POS);
 
     switch (cond) {
     case COND_EQ:

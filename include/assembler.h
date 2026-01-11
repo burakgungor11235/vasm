@@ -258,13 +258,29 @@ int
 assemble(const char* input_file, const char* output_file);
 
 /**
- * @brief Global assembler debug flag.
- *
- * @details When set to non-zero, the assembler prints debug information
- * to stderr during assembly. Useful for debugging assembly files.
- *
- * @note Default value is 0 (disabled)
+ * @brief Global assembler debug flag (legacy, for backward compatibility).
  */
 extern int asm_debug;
+
+/**
+ * @brief Enable a debug tag for the assembler.
+ *
+ * @param tag Tag name: LABEL, POOL, SYM, EMIT, INSTR, ALL
+ * @return 0 on success, -1 if tag not found
+ */
+int
+asm_debug_enable(const char* tag);
+
+/**
+ * @brief Disable all debug tags.
+ */
+void
+asm_debug_disable_all(void);
+
+/**
+ * @brief List available debug tags.
+ */
+void
+asm_debug_list_tags(void);
 
 #endif

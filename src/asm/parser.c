@@ -598,7 +598,8 @@ parse_branch(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_c
     u32 offset = 0;
 
     if (*i < token_count && tokens[*i].type == TOKEN_IDENTIFIER) {
-	ASM_DEBUG("BRANCH: Adding reloc for '%s' at addr 0x%X\n", tokens[*i].value, branch_addr);
+	ASM_DEBUG("BRANCH: Adding reloc for '%s' at addr 0x%X (current_addr=0x%X)\n",
+	          tokens[*i].value, branch_addr, ctx->current_addr);
 	add_reloc(ctx, tokens[*i].value, branch_addr, opcode == OP_BL || opcode == OP_B);
 	offset = 0;
 	(*i)++;
@@ -739,19 +740,22 @@ parse_alu(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_coun
     u32 instr;
 
     if (opcode == OP_CMP || opcode == OP_CMN || opcode == OP_TST || opcode == OP_TEQ) {
-	rd = 0;
+	operand_reg = rn;
+	rn = rd;
     }
 
     if (operand_reg >= 0) {
 	operand = operand_reg;
-	instr = (opcode << OPCODE_SHIFT) | (cond << COND_SHIFT) | (rn << RN_SHIFT) |
-	        (rd << RD_SHIFT) | operand;
     } else {
 	operand = (1 << 11) | (operand_immed & 0xFFF);
-	instr = (opcode << OPCODE_SHIFT) | (cond << COND_SHIFT) | (rn << RN_SHIFT) |
-	        (rd << RD_SHIFT) | operand;
     }
 
+    instr = (opcode << OPCODE_SHIFT) | (cond << COND_SHIFT) | (rn << RN_SHIFT) | (rd << RD_SHIFT) |
+            operand;
+
+    ASM_DEBUG_INSTR("parse_alu: opcode=0x%02X rd=%u rn=%u operand_immed=0x%X operand=0x%03X "
+                    "instr=0x%08X text_size=%d\n",
+                    opcode, rd, rn, operand_immed, operand, instr, ctx->text_size);
     emit_instr(ctx, instr);
     return 0;
 }
@@ -1033,7 +1037,7 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
     ctx.reloc_count = 0;
     ctx.literal_pool_count = 0;
     ctx.literal_pool_ref_count = 0;
-    ctx.current_addr = 0;
+    ctx.current_addr = TEXT_OFFSET;
     ctx.in_text_section = 1;
 
     for (int i = 0; i < token_count && tokens[i].type != TOKEN_EOF; i++) {
@@ -1125,11 +1129,16 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 
     for (int j = 0; j < ctx.reloc_count; j++) {
 	int addr = lookup_label(&ctx, ctx.relocs[j].name);
+	ASM_DEBUG("RELOC: %s: addr=0x%X reloc_addr=0x%X is_branch=%d\n", ctx.relocs[j].name, addr,
+	          ctx.relocs[j].address, ctx.relocs[j].is_branch);
 	if (addr >= 0) {
 	    if (ctx.relocs[j].is_branch) {
 		u32* patch_addr = &ctx.text[ctx.relocs[j].address / 4];
 		signed int signed_offset = (addr - (int)ctx.relocs[j].address - 4) / 4;
 		u32 offset = (u32)signed_offset;
+		ASM_DEBUG("RELOC: patching %s: patch_idx=%d old=0x%08X offset=%d new=0x%08X\n",
+		          ctx.relocs[j].name, ctx.relocs[j].address / 4, *patch_addr, signed_offset,
+		          (*patch_addr & 0xFFF0FFFF) | (offset & 0xFFFFF));
 		*patch_addr = (*patch_addr & 0xFFF0FFFF) | (offset & 0xFFFFF);
 	    } else {
 		ctx.literal_pool[ctx.relocs[j].address].value = (u32)addr;

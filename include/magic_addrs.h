@@ -116,6 +116,12 @@
  * SIGN AND CARRY FLAG MASKS
  * ============================================================ */
 
+/* CPSR flag bit positions (not masks - use with set_flag/get_flag functions) */
+#define CPSR_N_POS 31
+#define CPSR_Z_POS 30
+#define CPSR_C_POS 29
+#define CPSR_V_POS 28
+
 /* CPSR sign bit (bit 31 of CPSR register) */
 #define CPSR_N_BIT (1 << 31)
 

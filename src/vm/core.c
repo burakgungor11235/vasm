@@ -111,7 +111,12 @@ vm_step(vm_state_t* vm)
 
     vm->regs.pc += 4;
 
-    if (check_condition(vm, cond)) {
+    u32 cond_result = check_condition(vm, cond);
+    debug_log((debug_config_t*)vm->debug_config, "cond",
+              "[COND] pc=0x%08X cond=0x%X opcode=0x%02X cpsr=0x%08X cond_result=%u\n", pc, cond,
+              opcode, vm->regs.cpsr, cond_result);
+
+    if (cond_result) {
 	if (exec_table[opcode] != NULL) {
 	    exec_table[opcode](vm, instr);
 	} else {
@@ -189,6 +194,8 @@ vm_load(vm_state_t* vm, const char* filename)
     }
 
     vm->regs.pc = entry;
+    debug_load(vm->debug_config, filename, text_offset, text_size,
+               (u8*)(vm->mem.memory + text_offset));
     fclose(f);
     return 0;
 }
