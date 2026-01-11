@@ -1,0 +1,90 @@
+; case_convert.vasm - Read input and convert case
+; Task: Read a string, convert lowercase to uppercase and vice versa
+
+.data
+prompt:  .byte 'E', 'n', 't', 'e', 'r', ' ', 't', 'e', 'x', 't', ':', ' ', 10
+result_msg: .byte 'C', 'o', 'n', 'v', 'e', 'r', 't', 'e', 'd', ':', ' ', 10
+newline: .byte 10
+buffer: .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  ; 16-byte buffer
+
+.text
+; This program:
+; 1. Displays a prompt
+; 2. Reads user input (up to 15 characters)
+; 3. Converts lowercase to uppercase and vice versa
+; 4. Displays the converted result
+;
+; ASCII values:
+; 'A'-'Z' = 65-90
+; 'a'-'z' = 97-122
+; Difference between uppercase and lowercase = 32
+
+; TODO: Complete this program
+
+; Display prompt
+mov r0, #1              ; stdout
+ldr r1, =prompt         ; address of prompt
+mov r2, #12             ; length of prompt
+mov r7, #3              ; syscall = WRITE
+swi
+
+; Read input
+mov r0, #0              ; stdin
+ldr r1, =buffer         ; buffer address
+mov r2, #15             ; max 15 bytes (leave room for null)
+mov r7, #2              ; syscall = READ
+swi
+
+; r0 now contains bytes read (including newline if present)
+; Save the count for later
+; mov r4, r0             ; r4 = byte count
+
+; Process each character in the buffer
+; Convert lowercase to uppercase (subtract 32)
+; Convert uppercase to lowercase (add 32)
+
+; r1 = buffer address
+; r2 = loop counter (0 to byte_count-1)
+; r3 = current character
+
+; Loop through buffer:
+; ldrb r3, [r1, r2]      ; load byte at buffer[r2]
+; cmp r3, #'a'           ; if c >= 'a'
+; blt .not_lower         ;   skip
+; cmp r3, #'z'           ; if c <= 'z'
+; bgt .not_lower         ;   skip
+; sub r3, r3, #32        ;   convert to uppercase
+; strb r3, [r1, r2]      ;   store back
+; b .next_char           ; continue
+
+; .not_lower:
+; cmp r3, #'A'           ; if c >= 'A'
+; blt .next_char         ;   skip
+; cmp r3, #'Z'           ; if c <= 'Z'
+; bgt .next_char         ;   skip
+; add r3, r3, #32        ;   convert to lowercase
+; strb r3, [r1, r2]      ;   store back
+
+; .next_char:
+; add r2, r2, #1         ; increment counter
+; cmp r2, r4             ; compare with byte count
+; blt loop               ; if counter < count, continue
+
+; Display result message
+mov r0, #1              ; stdout
+ldr r1, =result_msg     ; address of result message
+mov r2, #11             ; length
+mov r7, #3              ; syscall = WRITE
+swi
+
+; Display converted text
+mov r0, #1              ; stdout
+ldr r1, =buffer         ; buffer address
+mov r2, r4              ; byte count (from READ)
+mov r7, #3              ; syscall = WRITE
+swi
+
+; Exit
+mov r0, #0              ; exit code
+mov r7, #1
+swi

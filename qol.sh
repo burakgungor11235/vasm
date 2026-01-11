@@ -11,19 +11,21 @@ usage() {
   echo "Usage: $0 <command> [args]"
   echo ""
   echo "Commands:"
-  echo "  build        Build the VM and assembler"
-  echo "  run <file>   Run a .varm program"
-  echo "  asm <file>   Assemble a .vasm file to .varm"
-  echo "  asmrun <file> Assemble and run a .vasm file immediately"
-  echo "  test         Run all tests"
-  echo "  clean        Clean build directory"
-  echo "  help         Show this help message"
+  echo "  build               Build the VM and assembler"
+  echo "  run <file>          Run a .varm program"
+  echo "  asm <file>          Assemble a .vasm file to .varm"
+  echo "  asmrun <file>       Assemble and run a .vasm file immediately"
+  echo "  test                Run all tests"
+  echo "  clean               Clean build directory"
+  echo "  help                Show this help message"
   echo ""
   echo "Examples:"
   echo "  $0 build"
   echo "  $0 run program.varm"
   echo "  $0 asm program.vasm -o program.varm"
   echo "  $0 asmrun program.vasm"
+  echo "  $0 asmrun program.vasm -- -o output.varm"
+  echo "  $0 asmrun program.vasm -- -o output.varm -- -d INSTR"
   echo "  $0 test"
 }
 
@@ -81,7 +83,17 @@ asm() {
 asmrun() {
   if [ -z "$1" ]; then
     echo "Error: No input file specified"
-    echo "Usage: $0 asmrun <input.vasm>"
+    echo "Usage: $0 asmrun <input.vasm> [-- <vasm-flags>] [-- <varm-flags>]"
+    echo ""
+    echo "Options:"
+    echo "  -- (first)    Separator before vasm flags"
+    echo "  -- (second)   Separator before varm flags"
+    echo ""
+    echo "Examples:"
+    echo "  $0 asmrun program.vasm"
+    echo "  $0 asmrun program.vasm -- -- -o output.varm"
+    echo "  $0 asmrun program.vasm -- -- -o output.varm -- -d INSTR"
+    echo "  $0 asmrun program.vasm -- -- -d INSTR"
     exit 1
   fi
 
@@ -97,17 +109,83 @@ asmrun() {
 
   cd "$SCRIPT_DIR"
 
-  if [ ! -f "$1" ]; then
-    echo "Error: File not found: $1"
+  # Find positions of -- delimiters
+  FIRST_DASH_DASH=-1
+  SECOND_DASH_DASH=-1
+  args=("$@")
+  for i in "${!args[@]}"; do
+    if [[ "${args[$i]}" == "--" ]]; then
+      if [[ $FIRST_DASH_DASH -eq -1 ]]; then
+        FIRST_DASH_DASH=$i
+      elif [[ $SECOND_DASH_DASH -eq -1 ]]; then
+        SECOND_DASH_DASH=$i
+        break
+      fi
+    fi
+  done
+
+  # Extract INPUT_FILE, VASM_ARGS, VARM_ARGS
+  INPUT_FILE=""
+  VASM_ARGS=()
+  VARM_ARGS=()
+
+  if [[ $FIRST_DASH_DASH -eq -1 ]]; then
+    # No -- found, first arg is input file, rest are vasm args
+    INPUT_FILE="${args[0]}"
+    VASM_ARGS=("${args[@]:1}")
+    VARM_ARGS=()
+  elif [[ $SECOND_DASH_DASH -eq -1 ]]; then
+    # One -- found
+    INPUT_FILE="${args[0]}"
+    VASM_ARGS=("${args[@]:$((FIRST_DASH_DASH + 1))}")
+    VARM_ARGS=()
+  else
+    # Two -- found
+    INPUT_FILE="${args[0]}"
+    VASM_ARGS=("${args[@]:$((FIRST_DASH_DASH + 1)):$((SECOND_DASH_DASH - FIRST_DASH_DASH - 1))}")
+    VARM_ARGS=("${args[@]:$((SECOND_DASH_DASH + 1))}")
+  fi
+
+  if [ -z "$INPUT_FILE" ]; then
+    echo "Error: No input file specified"
     exit 1
   fi
 
-  temp_file=$(mktemp /tmp/varm_XXXXXX.varm)
-  trap "rm -f '$temp_file'" EXIT
+  if [ ! -f "$INPUT_FILE" ]; then
+    echo "Error: File not found: $INPUT_FILE"
+    exit 1
+  fi
 
-  "$VASM" "$1" -o "$temp_file" > >(fmt_out) 2> >(fmt_err >&2)
+  # Check if -o is in vasm args (user wants specific output file)
+  HAS_OUTPUT=0
+  OUTPUT_FILE=""
+  i=0
+  while [ $i -lt ${#VASM_ARGS[@]} ]; do
+    if [[ "${VASM_ARGS[$i]}" == "-o" ]]; then
+      HAS_OUTPUT=1
+      OUTPUT_FILE="${VASM_ARGS[$((i + 1))]}"
+      break
+    fi
+    i=$((i + 1))
+  done
 
-  "$VARM" "$temp_file" > >(fmt_out) 2> >(fmt_err >&2)
+  if [[ $HAS_OUTPUT -eq 0 ]]; then
+    # No -o, use temp file and cleanup
+    temp_file=$(mktemp /tmp/varm_XXXXXX.varm)
+    trap "rm -f '$temp_file'" EXIT
+    VASM_ARGS+=("-o" "$temp_file")
+  else
+    temp_file="$OUTPUT_FILE"
+  fi
+
+  "$VASM" "${VASM_ARGS[@]}" "$INPUT_FILE" > >(fmt_out) 2> >(fmt_err >&2)
+
+  if [[ -n "$temp_file" ]] && [[ -f "$temp_file" ]]; then
+    "$VARM" "${VARM_ARGS[@]}" "$temp_file" > >(fmt_out) 2> >(fmt_err >&2)
+  else
+    echo "Error: Output file not created: $temp_file"
+    exit 1
+  fi
 }
 
 test() {

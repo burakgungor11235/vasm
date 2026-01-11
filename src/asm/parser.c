@@ -5,6 +5,7 @@
  * @details This module implements the core parsing logic for the varm assembler. It takes
  * tokenized input from the lexer and produces encoded machine code instructions. The parser
  * handles instruction encoding, label resolution, literal pool management, and relocation.
+ * Little-endian.
  *
  * The parser implements a multi-pass approach:
  * - Pass 1: Token classification and instruction dispatch
@@ -68,29 +69,68 @@
 #include "../../include/opcode.h"
 #include "parser_internal.h"
 #include "lookup_tables.h"
+#include "asm_debug.h"
 
 int asm_debug = 0;
 
-#define ASM_DEBUG(fmt, ...)                                                                        \
-    do {                                                                                           \
-	if (asm_debug) {                                                                           \
-	    fprintf(stderr, "[ASM] " fmt, ##__VA_ARGS__);                                          \
-	}                                                                                          \
-    } while (0)
+int asm_debug_tags[MAX_DEBUG_TAGS];
+const char* asm_debug_tag_names[MAX_DEBUG_TAGS];
+int asm_debug_tag_count = 0;
 
-#define ASM_DEBUG_LABEL(fmt, ...)                                                                  \
-    do {                                                                                           \
-	if (asm_debug) {                                                                           \
-	    fprintf(stderr, "[LABEL] " fmt, ##__VA_ARGS__);                                        \
-	}                                                                                          \
-    } while (0)
+static const char* internal_tag_names[] = {"LABEL", "POOL", "SYM", "EMIT", "INSTR", "ALL", NULL};
 
-#define ASM_DEBUG_POOL(fmt, ...)                                                                   \
-    do {                                                                                           \
-	if (asm_debug) {                                                                           \
-	    fprintf(stderr, "[POOL] " fmt, ##__VA_ARGS__);                                         \
-	}                                                                                          \
-    } while (0)
+int
+asm_debug_enable(const char* tag)
+{
+    if (asm_debug_tag_count == 0) {
+	for (int i = 0; internal_tag_names[i] != NULL; i++) {
+	    asm_debug_tag_names[i] = internal_tag_names[i];
+	    asm_debug_tags[i] = 0;
+	    asm_debug_tag_count++;
+	}
+    }
+
+    if (strcasecmp(tag, "ALL") == 0) {
+	for (int i = 0; i < asm_debug_tag_count; i++) {
+	    asm_debug_tags[i] = 1;
+	}
+	asm_debug = 1;
+	return 0;
+    }
+
+    for (int i = 0; i < asm_debug_tag_count; i++) {
+	if (strcasecmp(asm_debug_tag_names[i], tag) == 0) {
+	    asm_debug_tags[i] = 1;
+	    asm_debug = 1;
+	    return 0;
+	}
+    }
+    return -1;
+}
+
+void
+asm_debug_disable_all(void)
+{
+    for (int i = 0; i < asm_debug_tag_count; i++) {
+	asm_debug_tags[i] = 0;
+    }
+    asm_debug = 0;
+}
+
+void
+asm_debug_list_tags(void)
+{
+    fprintf(stderr, "Available debug tags:\n");
+    for (int i = 0; i < asm_debug_tag_count; i++) {
+	fprintf(stderr, "  %-8s %s\n", asm_debug_tag_names[i],
+	        i == 0   ? "- Label operations"
+	        : i == 1 ? "- Literal pool operations"
+	        : i == 2 ? "- Symbol table operations"
+	        : i == 3 ? "- Instruction emission"
+	        : i == 4 ? "- Instruction parsing"
+	                 : "");
+    }
+}
 
 /**
  * @brief Converts a register name string to its numeric index.
@@ -223,7 +263,7 @@ static int
 lookup_label(parser_ctx_t* ctx, const char* name)
 {
     u32 addr;
-    if (symbol_lookup(&ctx->labels, name, &addr)) {
+    if (!symbol_lookup(&ctx->labels, name, &addr)) {
 	return (int)addr;
     }
     return -1;
@@ -522,7 +562,10 @@ parse_move(parser_ctx_t* ctx, int opcode, token_t* tokens, int* i, int token_cou
 	instr = (opcode << OPCODE_SHIFT) | (cond << COND_SHIFT) | (rd << RD_SHIFT) | operand;
     }
 
+    ASM_DEBUG_INSTR("parse_move: rd=%d, imm=0x%x, instr=0x%08X\n", rd, operand_immed, instr);
     emit_instr(ctx, instr);
+    ASM_DEBUG_EMIT("after emit: text[%d]=0x%08X\n", ctx->text_size - 1,
+                   ctx->text[ctx->text_size - 1]);
     return 0;
 }
 
@@ -999,6 +1042,7 @@ parse(token_t* tokens, int token_count, program_state_t* prog)
 	}
 
 	if (tokens[i].type == TOKEN_LABEL) {
+	    ASM_DEBUG_LABEL("add_label('%s', 0x%X)\n", tokens[i].value, ctx.current_addr);
 	    add_label(&ctx, tokens[i].value, ctx.current_addr);
 	    continue;
 	}
