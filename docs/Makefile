@@ -43,7 +43,7 @@ all: html
 
 html: doxygen
 	@echo "Building HTML documentation..."
-	$(SPHINXBUILD) -b html $(SPHINXOPTS) source $(BUILDDIR)/html
+	$(SPHINXBUILD) -b html $(SPHINXOPTS) -c . source $(BUILDDIR)/html
 	@echo ""
 	@echo "HTML documentation built in $(BUILDDIR)/html/"
 
@@ -59,7 +59,7 @@ pdf: latex
 
 latex: doxygen
 	@echo "Building LaTeX documentation..."
-	$(SPHINXBUILD) -b latex $(SPHINXOPTS) -D latex_paper_size=$(PAPER) source $(BUILDDIR)/latex
+	$(SPHINXBUILD) -b latex $(SPHINXOPTS) -c . -D latex_paper_size=$(PAPER) source $(BUILDDIR)/latex
 	@echo ""
 	@echo "LaTeX source built in $(BUILDDIR)/latex/"
 
@@ -100,7 +100,7 @@ install:
 livehtml: doxygen
 	@echo "Starting live HTML preview at http://localhost:8000..."
 	@echo "Press Ctrl+C to stop."
-	sphinx-autobuild -b html --ignore "*.dox" $(SPHINXOPTS) source $(BUILDDIR)/html
+	sphinx-autobuild -b html --ignore "*.dox" $(SPHINXOPTS) -c . source $(BUILDDIR)/html
 
 #---------------------------------------------------------------------------
 # Check for broken links and issues
@@ -108,7 +108,7 @@ livehtml: doxygen
 
 check: doxygen
 	@echo "Checking documentation for issues..."
-	$(SPHINXBUILD) -b linkcheck $(SPHINXOPTS) source $(BUILDDIR)/linkcheck
+	$(SPHINXBUILD) -b linkcheck $(SPHINXOPTS) -c . source $(BUILDDIR)/linkcheck
 
 #---------------------------------------------------------------------------
 # Clean build artifacts
