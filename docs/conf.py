@@ -31,7 +31,7 @@ extensions = [
 
 html_theme = "sphinx_immaterial"
 html_suffix = ".html"
-html_static_path = ["source/_static"]
+html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 
 # Immaterial theme options
@@ -92,11 +92,11 @@ mermaid_js_url = "_static/mermaid/mermaid.min.js"
 import sys
 import os
 
-_ext_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "source", "_ext"))
+_ext_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "_ext"))
 if _ext_path not in sys.path:
     sys.path.insert(0, _ext_path)
 
-_static_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "source", "_static"))
+_static_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "_static"))
 _pygments_path = os.path.join(_static_path, "pygments")
 if _pygments_path not in sys.path:
     sys.path.insert(0, _pygments_path)
@@ -122,6 +122,8 @@ copybutton_minimum_lines = 1
 # Exclude patterns
 exclude_patterns = [
     "_build",
+    "build",
+    ".venv",
     "Thumbs.db",
     ".DS_Store",
 ]
